@@ -82,7 +82,7 @@ Limite connue : `Math.sqrt/hypot` sont déterministes en IEEE, mais pas `Math.si
 | 2 | Premier personnage (KAIRO), déplacements, animations par coup | **faite, à tester** |
 | 3 | Système de combat : frames, hitbox/hurtbox, blocage, parade, projection, esquive, combos, contre-attaque, juggle simple | **faite, à tester** |
 | 4 | 2e personnage (VERA) + IA (5 niveaux) | **faite, à tester** |
-| 5 | Premier mode jouable | **partiel** : combat contre IA et entraînement jouables ; arcade (8 combats, boss, classement) à faire |
+| 5 | Premier mode jouable (arcade : 9 combats, difficulté, score, classement local) | **faite, à tester** (fin du boss non testée dans le navigateur) |
 | 6 | Mode histoire | à faire |
 | 7 | Mode robots | à faire |
 | 8 | Multijoueur en ligne à deux | à faire |

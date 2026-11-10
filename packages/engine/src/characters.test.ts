@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CHARACTER_IDS, getCharacter, MOVE_IDS, ROSTER, type MoveId } from './index';
+import { getCharacter, MOVE_IDS, ROSTER, type MoveId } from './index';
 
 describe('roster', () => {
   it('chaque personnage définit tous les coups avec des frames valides', () => {
-    for (const id of CHARACTER_IDS) {
+    for (const id of Object.keys(ROSTER)) {
       const ch = getCharacter(id);
       for (const move of MOVE_IDS) {
         const m = ch.moves[move as MoveId];

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fr, t } from '../../i18n/fr';
 import { backToMenu, startFight, useApp, useHud } from '../store';
+import { useArcade } from '../arcade/session';
+import { ARCADE_STAGES, getCharacter } from '@iron/engine';
 
 function HealthBar({ value, max, mirrored, color }: { value: number; max: number; mirrored: boolean; color: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -52,6 +54,13 @@ function Overlay() {
     const text = h.roundWinner === null ? (h.clock <= 0 ? t.hud.time : t.hud.draw) : t.hud.ko;
     return <Centered className="text-6xl tracking-widest text-iron-amber">{text}</Centered>;
   }
+  if (h.phase === 'over' && useArcade.getState().active) {
+    return (
+      <Centered className={`text-6xl tracking-widest ${h.matchWinner === 0 ? 'text-iron-cyan' : 'text-red-400'}`}>
+        {h.matchWinner === 0 ? t.hud.victory : t.hud.defeat}
+      </Centered>
+    );
+  }
   if (h.phase === 'over') {
     const won = h.matchWinner === 0;
     return (
@@ -85,6 +94,7 @@ function Centered({ children, className = '' }: { children: React.ReactNode; cla
 export function Hud() {
   const h = useHud();
   const mode = useApp((s) => s.config.mode);
+  const arcade = useArcade();
   const comboCount = h.combo[0] >= h.combo[1] ? h.combo[0] : h.combo[1];
   const comboSide = h.combo[0] >= h.combo[1] ? 'left' : 'right';
 
@@ -121,6 +131,11 @@ export function Hud() {
       <DamagePop />
       <Overlay />
 
+      {arcade.active && (
+        <div className="absolute left-1/2 top-2 -translate-x-1/2 text-xs tracking-[0.3em] text-iron-amber">
+          ARCADE · ÉTAPE {arcade.stage + 1} / {ARCADE_STAGES.length} · {getCharacter(ARCADE_STAGES[arcade.stage]!.opponent).name}
+        </div>
+      )}
       {h.infinite && mode === 'training' && (
         <div className="absolute left-1/2 top-24 -translate-x-1/2 text-xs tracking-[0.3em] text-iron-cyan">{t.hud.infinite}</div>
       )}

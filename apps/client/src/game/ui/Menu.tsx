@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { fr, t } from '../../i18n/fr';
 import { DUMMY_MODES, type DummyMode, type MatchConfig } from '../runtime';
 import { startFight, useApp } from '../store';
+import { arcadeOpen } from '../arcade/session';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -96,6 +97,13 @@ export function Menu() {
           className="border border-iron-amber bg-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-black hover:brightness-110"
         >
           {fr.menu.start}
+        </button>
+        <button
+          type="button"
+          onClick={arcadeOpen}
+          className="ml-4 border border-iron-cyan px-10 py-4 text-lg tracking-[0.3em] text-iron-cyan hover:bg-iron-cyan/10"
+        >
+          ARCADE
         </button>
       </div>
     </main>

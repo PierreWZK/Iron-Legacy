@@ -4,3 +4,4 @@ export * from './state';
 export * from './characters';
 export * from './sim';
 export * from './ai';
+export * from './arcade';

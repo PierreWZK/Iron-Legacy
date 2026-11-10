@@ -54,6 +54,8 @@ export class Runtime {
   shake = 0;
   /** Vie infinie (entraînement uniquement). */
   infinite = false;
+  /** Vie la plus basse atteinte par le joueur pendant le combat (détecte les combats parfaits). */
+  playerMin = 100;
   config: MatchConfig = { p1: 'kairo', p2: 'vera', mode: 'training', level: 2, dummy: 'idle' };
   private acc = 0;
   private queue: GameEvent[] = [];
@@ -66,6 +68,7 @@ export class Runtime {
     this.alpha = 0;
     this.shake = 0;
     this.queue = [];
+    this.playerMin = this.world.fighters[0]!.maxHealth;
   }
 
   cycleDummy(): void {
@@ -94,6 +97,7 @@ export class Runtime {
       if (this.infinite && this.config.mode === 'training') {
         for (const f of w.fighters) f.health = f.maxHealth;
       }
+      this.playerMin = Math.min(this.playerMin, w.fighters[0]!.health);
       for (const e of w.events) {
         this.queue.push(e);
         if (e.kind === 'hit' || e.kind === 'throw') {

@@ -17,6 +17,8 @@ const PROFILES: Record<number, Profile> = {
   3: { react: 0.55, attack: 0.08, block: 0.45 },
   4: { react: 0.75, attack: 0.11, block: 0.7 },
   5: { react: 0.9, attack: 0.15, block: 0.9 },
+  6: { react: 0.95, attack: 0.19, block: 0.97 },
+  7: { react: 0.99, attack: 0.23, block: 1 },
 };
 
 const ATTACK_BUTTONS = [Btn.LP, Btn.RP, Btn.LK, Btn.RK] as const;
@@ -31,7 +33,7 @@ export function aiInput(w: World, self: Fighter, opp: Fighter, level: number): I
   if (self.action === 'attack' || self.action === 'dodge' || self.action === 'parry' || self.action === 'throw') {
     return 0;
   }
-  const p = PROFILES[Math.min(5, Math.max(1, Math.round(level)))]!;
+  const p = PROFILES[Math.min(7, Math.max(1, Math.round(level)))]!;
   const dist = Math.hypot(opp.pos.x - self.pos.x, opp.pos.z - self.pos.z);
 
   const threat = opp.action === 'attack' && !opp.moveHit && opp.move !== null;

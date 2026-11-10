@@ -179,3 +179,57 @@ Pour chaque point : ce qui ne marche pas, ce qui te semble mauvais (valeurs, res
 - si tu veux que je finisse l'**arcade** (phase 5) avant la suite, ou si on enchaîne sur les personnages.
 
 Branche : `feat/phases-2-4-combat`, créée à partir de `feat/phase-1-prototype`. Rien n'est poussé.
+
+---
+
+## 10. Session 3 : phase 5 (arcade)
+
+Demande : « Je te laisse continuer ! » (suite du plan : arcade après la phase 4).
+
+### Ce qui est fait
+
+- **Arcade** : 9 combats (8 adversaires + boss TITAN-01), dans l'ordre : VERA niv.1, KAIRO niv.2, VERA niv.2, KAIRO niv.3, VERA niv.3, KAIRO niv.4, VERA niv.4, KAIRO niv.5, TITAN-01 niv.5 (boss).
+- **Difficulté** : Facile, Normal, Difficile, Expert. Décale le niveau d'IA (-1 à +2, borné 1 à 7) et multiplie le score (0,8 / 1 / 1,25 / 1,5).
+- **Boss TITAN-01** : données seules (vie 180, lent, coups lourds, échelle 1,45). Non sélectionnable dans le menu.
+- **IA** : niveaux 6 et 7 ajoutés pour l'Expert.
+- **Score** (fonction pure, `scoreFight`) : 1000 × numéro d'étape, + vie restante (jusqu'à 500), + 10 × secondes restantes, + 1000 si combat parfait (aucun PV perdu), le tout × multiplicateur de difficulté.
+- **Parcours** : victoire → écran « ÉTAPE n RÉUSSIE » (score, total, prochain adversaire) → étape suivante. Défaite → écran « DÉFAITE » (score, détail, Réessayer, Menu). Boss vaincu → fin par personnage (texte) + texte de fin du boss + score final.
+- **Classement local** : top 10 dans le localStorage du navigateur. Propre à ce navigateur ; le classement en ligne viendra avec les comptes (phase 11).
+- **Navigation** : bouton ARCADE dans le menu ; Échap quitte l'arcade (retour menu).
+
+### Ce qui n'est pas fait (honnêtement)
+
+- Cinématiques de fin : **texte seul**, pas de vidéo ni de mise en scène.
+- Un seul décor (dojo) pour tout l'arcade : les « noms de lieux » de l'échelle ne sont pas affichés et les arènes ne changent pas.
+- Seulement 2 personnages jouables + 1 boss : l'arcade réutilise KAIRO et VERA comme adversaires. Les 10 personnages restants viendront avec la suite du roster.
+- Les écrans arcade ne sont pas traduits via `i18n/fr.ts` (textes en dur en français).
+- Le passage à l'écran de fin du boss (victoire finale) n'a pas été testé dans le navigateur ; le chemin est couvert par la logique (`arcadeFightOver`) mais pas par un test automatique.
+- Classement non partagé entre joueurs ni entre navigateurs.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : 46 tests Vitest (dont 10 nouveaux pour l'arcade : échelle, boss, niveaux bornés, score monotone, difficulté, bornes) | **46/46 passent** |
+| `npm run typecheck` | OK |
+| `npm run build` | OK |
+| Navigateur : menu → ARCADE → sélection → COMMENCER → étape 1 (libellé « ARCADE · ÉTAPE 1 / 9 · VERA ») → victoire → écran « ÉTAPE 1 RÉUSSIE » (score 2 000) → ÉTAPE SUIVANTE → étape 2 (adversaire KAIRO) → défaite → écran « DÉFAITE » avec score et classement | OK |
+
+Bugs trouvés pendant les tests : aucun dans la logique. Une erreur 500 transitoire de Vite est apparue pendant le rechargement à chaud : elle a disparu au rechargement, sans changement de code.
+
+### Tests à faire par toi
+
+1. Menu → ARCADE. Choisis un combattant et une difficulté, puis COMMENCER.
+2. Joue l'étape 1 contre VERA. Gagne : l'écran « ÉTAPE 1 RÉUSSIE » doit afficher un score cohérent (plus de vie et de temps = plus de points).
+3. Continue jusqu'à la défaite : l'écran DÉFAITE doit apparaître, avec le score et le classement.
+4. Essaie les 4 difficultés. Facile doit être battable, Expert nettement plus dur.
+5. Échap pendant un combat d'arcade : retour au menu.
+6. Si tu peux, gagne tout l'arcade jusqu'au boss TITAN-01 : vérifie l'écran de fin (texte, score final, classement). **Ce test n'a pas été fait par moi.**
+7. Ferme et rouvre le navigateur : le classement doit être encore là.
+
+### Modifications à me renvoyer
+
+- Équilibrage : niveaux de chaque étape, boss trop dur ou trop facile.
+- Score : les poids te semblent-ils justes ?
+- Textes de fin : à réécrire ou à raccourcir ?
+- Quand tu veux, je passe aux personnages suivants (roster) ou à l'histoire (phase 6).

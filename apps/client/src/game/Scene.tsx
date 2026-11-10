@@ -9,15 +9,21 @@ import { Effects } from './render/Effects';
 import { FighterView } from './render/FighterView';
 import { runtime } from './runtime';
 import { useHud } from './store';
+import { arcadeFightOver } from './arcade/session';
 
 /** Pilote la sim à pas fixe depuis la boucle de rendu et pousse un résumé vers l'interface (10 Hz). */
 function Simulation({ kb }: { kb: KeyboardInput }) {
-  const acc = useMemo(() => ({ since: 0, frames: 0 }), []);
+  const acc = useMemo(() => ({ since: 0, frames: 0, ended: false }), []);
 
   useFrame((_, delta) => {
     runtime.advance(delta, kb);
     const w = runtime.world;
     if (!w) return;
+    if (w.match.phase === 'over' && !acc.ended) {
+      // Fin du combat : en arcade, on enchaîne après une courte pause (sans effet hors arcade).
+      acc.ended = true;
+      window.setTimeout(arcadeFightOver, 2500);
+    }
     acc.since += delta;
     acc.frames++;
     if (acc.since < 0.1) return;
