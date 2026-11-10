@@ -1,0 +1,13 @@
+{
+  "name": "iron-legacy",
+  "private": true,
+  "version": "0.1.0",
+  "description": "PROJECT IRON LEGACY — jeu de combat 3D navigateur",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @iron/client",
+    "build": "npm run build -w @iron/client",
+    "test": "npm run test -w @iron/engine",
+    "typecheck": "npm run typecheck -w @iron/engine && npm run typecheck -w @iron/client"
+  }
+}
