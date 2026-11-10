@@ -11,6 +11,7 @@ import { runtime } from './runtime';
 import { useHud } from './store';
 import { arcadeFightOver } from './arcade/session';
 import { storyFightOver } from './story/session';
+import { robotFightOver } from './robots/session';
 
 /** Pilote la sim à pas fixe depuis la boucle de rendu et pousse un résumé vers l'interface (10 Hz). */
 function Simulation({ kb }: { kb: KeyboardInput }) {
@@ -26,6 +27,7 @@ function Simulation({ kb }: { kb: KeyboardInput }) {
       window.setTimeout(() => {
         arcadeFightOver();
         storyFightOver();
+        robotFightOver();
       }, 2500);
     }
     acc.since += delta;

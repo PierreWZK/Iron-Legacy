@@ -19,6 +19,11 @@ export const ARENA_OF: Record<string, ArenaId> = {
   akira: 'temple',
   nyx: 'desert',
   titan: 'fortress',
+  scout: 'factory',
+  guardian: 'lab',
+  assassin: 'fortress',
+  heavy: 'factory',
+  elite: 'lab',
 };
 
 export function arenaFor(characterId: string): ArenaId {

@@ -87,8 +87,13 @@ export interface Look {
   scale: number;
 }
 
+/** Comportement de l'IA quand ce personnage est contrôlé par l'ordinateur. */
+export type AiStyle = 'balanced' | 'hitAndRun' | 'pressure' | 'combo' | 'adaptive' | 'heavy';
+
 export interface CharacterDef {
   id: string;
+  /** Style d'IA (défaut : équilibré). */
+  aiStyle?: AiStyle;
   name: string;
   epithet: string;
   style: string;

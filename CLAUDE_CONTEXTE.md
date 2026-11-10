@@ -501,3 +501,67 @@ Ouvre http://localhost:5328/ (pas `?unlockAll` : il faut voir le déblocage).
 ### Modifications à me renvoyer
 
 Pour chaque point : le personnage ou le chapitre concerné, et le texte ou le comportement à changer.
+
+---
+
+## 15. Session 8 : phase 7 (mode robots)
+
+Demande : « Continuer » (suite du plan : phase 7, robots, vagues et défis).
+
+### Ce qui est fait
+
+- **5 robots** avec statistiques et **styles d'IA distincts** (`characters/robots.ts`, `ai.ts`) :
+  - **SCOUT** (80 PV) : rapide, frappes courtes, recule après chaque attaque.
+  - **GUARDIAN** (170 PV) : pousse sans cesse, bloque beaucoup.
+  - **ASSASSIN** (110 PV) : enchaînements longs (strings), coups en série.
+  - **HEAVY** (220 PV) : très lent, projections à bout portant, coups de charge à distance.
+  - **ELITE** (150 PV) : adaptatif, parades quand l'attaque arrive de près, tous les coups.
+  - **TITAN-01** : style lourd (boss de la vague 10).
+  - Non jouables dans le menu principal, en `ROBOT_IDS`.
+- **Mode vagues** (`survival.ts`) : un robot par vague, dans l'ordre SCOUT, GUARDIAN, ASSASSIN, HEAVY, ELITE. Niveau d'IA monte d'une unité toutes les deux vagues (max 7). Vie du robot ×(1 + 0,08 × vague), plafonnée à ×2,2. **TITAN-01 toutes les 10 vagues.** Ta vie se reporte d'une vague à l'autre, avec +25 % de vie max de récupération entre deux vagues (`healBetweenWaves`).
+- **Défis** (`challenges.ts`), 6 objectifs : sans une égratignure (GUARDIAN), éclair (SCOUT, >30 s restantes), prise de contrôle (HEAVY, 2 projections), enchaînement (ASSASSIN, 5 coups), mur (HEAVY, 5 blocs), contre l'élite (ELITE). Réussite enregistrée localement.
+- **Arènes industrielles** par robot : SCOUT et HEAVY en usine, GUARDIAN et ELITE au labo, ASSASSIN et TITAN-01 en forteresse.
+- **Visuels** : 5 robots dessinés en code, de tailles et couleurs distinctes.
+- **Interface** : bouton ROBOTS au menu, choix du héros (débloqués), VAGUES, défis, écran entre vagues (vie restaurée), fin des vagues (meilleure vague), résultat de défi. HUD : « VAGUE n · nom » ou « DÉFI · nom ». Échap quitte.
+- **Moteur** : `DuelOptions.maxHealth` et `health` (vie max et vie de départ personnalisées).
+- **Statistiques de combat** (`runtime.stats`) : dégâts subis, secondes restantes, projections réussies, blocs, plus long enchaînement. Alimentent les défis.
+- Tests : `robots.test.ts` (5 robots, styles distincts, combats sans valeur non finie, vagues, récupération, défis). **106 tests moteur.**
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Pas de « défi » comme mode à part avec scoring** : un défi est validé ou non, sans classement.
+- **Pas de mode « combat unique contre un robot »** : seulement vagues et défis.
+- **Les robots n'ont pas d'animations propres** : ce sont des humanoïdes robotiques avec les mêmes poses que les autres. « Effets visuels technologiques » et « réactions aux coups » propres aux robots : non faits.
+- **Pas de mode survie chronométré** ni de classement de survie.
+- **Vagues et défis non vérifiés visuellement pour chaque robot** : contrôlés par le DOM et l'état de la sim (une vague, une victoire, une défaite, un défi lancé et échoué).
+- **Pas de sauvegarde de compte** : records et défis réussis dans le navigateur.
+- **Équilibrage non joué** : les vagues et les défis n'ont été ni joués ni mesurés par un vrai joueur.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : 106 tests (dont 16 nouveaux pour les robots, les vagues et les défis) | **106/106 passent** |
+| `npm run typecheck` | OK |
+| `npm run build` | OK |
+| Navigateur : menu ROBOTS → COMMENCER LES VAGUES → vague 1 contre ROBOT SCOUT (80 PV), HUD « VAGUE 1 · ROBOT SCOUT » | OK |
+| Navigateur : victoire vague 1 → écran « VAGUE 1 RÉUSSIE », vie reportée (40 → 65 PV), vague 2 contre ROBOT GARDIEN | OK |
+| Navigateur : défi « Enchaînement » lancé contre ROBOT ASSASSIN, HUD « DÉFI · Enchaînement », défi non réussi sans enchaînement | OK |
+| Navigateur : défaite → écran « FIN DES VAGUES », meilleure vague sauvegardée | OK |
+
+Bugs trouvés et corrigés : export en double dans `index.ts`, fichier d'export créé au mauvais endroit (supprimé), résultat de vague qui gardait `active` vrai.
+
+### Tests à faire par toi
+
+Ouvre http://localhost:5328/?unlockAll (le mode robots est jouable même sans déblocage du héros, mais `?unlockAll` débloque aussi le choix de héros).
+
+1. **Vagues** : enchaîne les vagues 1 à 5. Chaque robot a-t-il un comportement reconnaissable ? (SCOUT recule, GUARDIAN pousse, ASSASSIN enchaîne, HEAVY projette, ELITE pare.)
+2. **Vie reportée** : perds peu de vie puis vérifie la vie au début de la vague suivante.
+3. **Vague 10** : TITAN-01 doit apparaître. Dis-moi si c'est trop difficile.
+4. **Défis** : tente chaque défi. Lesquels sont trop durs, lesquels impossibles ?
+5. **Arènes** : les usines, labos et forteresse te paraissent-elles distinctes ?
+6. **Visuels des robots** : tailles et couleurs. Lequel est raté ?
+
+### Modifications à me renvoyer
+
+Pour chaque point : le robot, la vague ou le défi concerné, et le comportement ou la valeur à changer.

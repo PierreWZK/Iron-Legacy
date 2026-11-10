@@ -7,3 +7,5 @@ export * from './ai';
 export * from './arcade';
 export * from './combat/intent';
 export * from './story';
+export * from './survival';
+export * from './challenges';

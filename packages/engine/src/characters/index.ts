@@ -3,6 +3,7 @@ import { VERA } from './vera';
 import { TITAN } from './titan';
 import { BULL, FOX, HUSKY, ROBOT, STAG, WOLF } from './creatures';
 import { AKIRA, BRUTUS, NYX, SHIN } from './humanoids';
+import { ASSASSIN, ELITE, GUARDIAN, HEAVY, SCOUT } from './robots';
 import type { CharacterDef, MoveDef, MoveId } from './types';
 
 export * from './types';
@@ -11,7 +12,10 @@ export * from './types';
 export const ROSTER: Record<string, CharacterDef> = {
   kairo: KAIRO, vera: VERA, wolf: WOLF, fox: FOX, bull: BULL, stag: STAG, husky: HUSKY, robot: ROBOT,
   shin: SHIN, brutus: BRUTUS, akira: AKIRA, nyx: NYX, titan: TITAN,
+  scout: SCOUT, guardian: GUARDIAN, assassin: ASSASSIN, heavy: HEAVY, elite: ELITE,
 };
+/** Robots du mode robots (non jouables dans le menu principal). */
+export const ROBOT_IDS: string[] = ['scout', 'guardian', 'assassin', 'heavy', 'elite'];
 /** Personnages jouables, dans l'ordre de déblocage (TITAN-01 est un boss d'arcade, non jouable). */
 export const CHARACTER_IDS: string[] = [
   'kairo', 'vera', 'wolf', 'fox', 'bull', 'stag', 'husky', 'robot', 'shin', 'brutus', 'akira', 'nyx',

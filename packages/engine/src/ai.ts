@@ -1,4 +1,5 @@
-import { getMove } from './characters';
+import { getCharacter, getMove } from './characters';
+import type { AiStyle } from './characters/types';
 import { Btn, type InputFrame } from './input';
 import { nextRandom, type Fighter, type World } from './state';
 
@@ -24,6 +25,16 @@ const PROFILES: Record<number, Profile> = {
 };
 
 const BUTTONS = [Btn.LP, Btn.RP, Btn.LK, Btn.RK] as const;
+
+/** Multiplicateurs par style de robot (appliqués au profil de niveau). */
+const STYLE: Record<AiStyle, { react: number; attack: number; block: number; chain: number }> = {
+  balanced: { react: 1, attack: 1, block: 1, chain: 1 },
+  hitAndRun: { react: 0.8, attack: 1.2, block: 0.8, chain: 0.5 },
+  pressure: { react: 1.4, attack: 0.9, block: 1.3, chain: 0.8 },
+  combo: { react: 0.9, attack: 1.1, block: 0.9, chain: 2.5 },
+  adaptive: { react: 1.1, attack: 1.0, block: 1.2, chain: 1.2 },
+  heavy: { react: 0.9, attack: 0.6, block: 0.8, chain: 0.7 },
+};
 
 /** Un coup que l'IA sait lancer : direction + bouton(s), plage de distance, niveau minimum. */
 interface Option {
@@ -74,7 +85,15 @@ const OPTIONS: readonly Option[] = [
  */
 export function aiInput(w: World, self: Fighter, opp: Fighter, level: number): InputFrame {
   if (w.match.phase !== 'fight' || self.stun > 0) return 0;
-  const p = PROFILES[Math.min(7, Math.max(1, Math.round(level)))]!;
+  const base = PROFILES[Math.min(7, Math.max(1, Math.round(level)))]!;
+  const style = getCharacter(self.characterId).aiStyle ?? 'balanced';
+  const k = STYLE[style];
+  const p: Profile = {
+    react: Math.min(1, base.react * k.react),
+    attack: base.attack * k.attack,
+    block: Math.min(1, base.block * k.block),
+    chain: base.chain * k.chain,
+  };
 
   if (self.action === 'attack' && self.move) {
     const m = getMove(self.characterId, self.move);
@@ -92,9 +111,19 @@ export function aiInput(w: World, self: Fighter, opp: Fighter, level: number): I
 
   const threat = opp.action === 'attack' && !opp.moveHit && opp.move !== null;
   if (threat && dist < 2.4 && nextRandom(w) < p.react) {
+    // Élite : parade quand l'attaque arrive de près (arrière + LP, fenêtre courte).
+    if (style === 'adaptive' && dist < 1.3 && nextRandom(w) < 0.5) return Btn.Back | Btn.LP;
     const low = opp.move !== null && getMove(opp.characterId, opp.move).height === 'low';
     if (low && nextRandom(w) < p.block) return Btn.Back | Btn.Crouch;
     return Btn.Back;
+  }
+  // Éclaireur : recule dès qu'il est trop près, après son attaque.
+  if (style === 'hitAndRun' && dist < 1.1 && nextRandom(w) < 0.4) return Btn.Back;
+  // Gardien : avance sans cesse.
+  if (style === 'pressure' && dist > 1.0 && nextRandom(w) < 0.8) return Btn.Fwd;
+  // Lourd : projection à bout portant, sinon coup lourd à distance.
+  if (style === 'heavy' && dist < 1.0 && nextRandom(w) < 0.5) {
+    return (self.prevInput & (Btn.LP | Btn.RP)) !== 0 ? 0 : Btn.LP | Btn.RP;
   }
   if (dist > 3.0) return Btn.Fwd | Btn.Shift;
   if (dist > 1.7) return Btn.Fwd;

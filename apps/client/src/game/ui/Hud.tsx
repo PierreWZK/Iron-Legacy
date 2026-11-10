@@ -3,7 +3,10 @@ import { fr, t } from '../../i18n/fr';
 import { backToMenu, startFight, useApp, useHud } from '../store';
 import { useArcade } from '../arcade/session';
 import { useStory } from '../story/session';
-import { ARCADE_STAGES, getCharacter, storyOpponents } from '@iron/engine';
+import { useRobots } from '../robots/session';
+import { ARCADE_STAGES, getChallenge, getCharacter, storyOpponents, waveSetup } from '@iron/engine';
+
+const useArenaRobot = (wave: number): string => waveSetup(wave).robot;
 
 function HealthBar({ value, max, mirrored, color }: { value: number; max: number; mirrored: boolean; color: string }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -55,7 +58,7 @@ function Overlay() {
     const text = h.roundWinner === null ? (h.clock <= 0 ? t.hud.time : t.hud.draw) : t.hud.ko;
     return <Centered className="text-6xl tracking-widest text-iron-amber">{text}</Centered>;
   }
-  if (h.phase === 'over' && (useArcade.getState().active || useStory.getState().active)) {
+  if (h.phase === 'over' && (useArcade.getState().active || useStory.getState().active || useRobots.getState().active)) {
     return (
       <Centered className={`text-6xl tracking-widest ${h.matchWinner === 0 ? 'text-iron-cyan' : 'text-red-400'}`}>
         {h.matchWinner === 0 ? t.hud.victory : t.hud.defeat}
@@ -97,6 +100,7 @@ export function Hud() {
   const mode = useApp((s) => s.config.mode);
   const arcade = useArcade();
   const story = useStory();
+  const robots = useRobots();
   const comboCount = h.combo[0] >= h.combo[1] ? h.combo[0] : h.combo[1];
   const comboSide = h.combo[0] >= h.combo[1] ? 'left' : 'right';
 
@@ -136,6 +140,13 @@ export function Hud() {
       {arcade.active && (
         <div className="absolute left-1/2 top-2 -translate-x-1/2 text-xs tracking-[0.3em] text-iron-amber">
           ARCADE · ÉTAPE {arcade.stage + 1} / {ARCADE_STAGES.length} · {getCharacter(ARCADE_STAGES[arcade.stage]!.opponent).name}
+        </div>
+      )}
+      {robots.active && (
+        <div className="absolute left-1/2 top-2 -translate-x-1/2 text-xs tracking-[0.3em] text-iron-amber">
+          {robots.mode === 'survival'
+            ? `VAGUE ${robots.wave + 1} · ${getCharacter(useArenaRobot(robots.wave)).name}`
+            : `DÉFI · ${getChallenge(robots.challengeId ?? '').label}`}
         </div>
       )}
       {story.active && (

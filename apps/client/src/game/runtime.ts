@@ -1,8 +1,19 @@
-import { aiInput, Btn, cloneWorld, createDuelWorld, DT, stepWorld, type GameEvent, type World } from '@iron/engine';
+import { aiInput, Btn, cloneWorld, createDuelWorld, DT, stepWorld, TICK_RATE, type GameEvent, type World } from '@iron/engine';
 import type { Axis, KeyboardInput } from './input/keyboard';
 
 export type DummyMode = 'idle' | 'block' | 'attack' | 'patrol';
 export type Mode = 'training' | 'ai';
+
+/** Statistiques d'un combat, lues par les défis du mode robots. */
+export interface MatchStats {
+  damageTaken: number;
+  secondsLeft: number;
+  throws: number;
+  blocks: number;
+  comboMax: number;
+}
+
+export const emptyStats = (): MatchStats => ({ damageTaken: 0, secondsLeft: 0, throws: 0, blocks: 0, comboMax: 0 });
 
 export interface MatchConfig {
   p1: string;
@@ -12,6 +23,9 @@ export interface MatchConfig {
   level: number;
   /** Comportement du mannequin en entraînement. */
   dummy: DummyMode;
+  /** Vie max et vie de départ, joueur 1 puis joueur 2 (mode robots). */
+  maxHealth?: [number, number];
+  health?: [number, number];
 }
 
 export const DUMMY_MODES: readonly DummyMode[] = ['idle', 'block', 'attack', 'patrol'];
@@ -57,12 +71,19 @@ export class Runtime {
   /** Vie la plus basse atteinte par le joueur pendant le combat (détecte les combats parfaits). */
   playerMin = 100;
   config: MatchConfig = { p1: 'kairo', p2: 'vera', mode: 'training', level: 2, dummy: 'idle' };
+  /** Statistiques du combat en cours. */
+  stats: MatchStats = emptyStats();
+  private lastHp = 100;
   private acc = 0;
   private queue: GameEvent[] = [];
 
   start(cfg: MatchConfig): void {
     this.config = { ...cfg };
-    this.world = createDuelWorld({ p1: cfg.p1, p2: cfg.p2, intro: true });
+    this.world = createDuelWorld({
+      p1: cfg.p1, p2: cfg.p2, intro: true, maxHealth: cfg.maxHealth, health: cfg.health,
+    });
+    this.stats = emptyStats();
+    this.lastHp = this.world.fighters[0]!.health;
     this.prev = cloneWorld(this.world);
     this.acc = 0;
     this.alpha = 0;
@@ -98,7 +119,14 @@ export class Runtime {
         for (const f of w.fighters) f.health = f.maxHealth;
       }
       this.playerMin = Math.min(this.playerMin, w.fighters[0]!.health);
+      const hp = w.fighters[0]!.health;
+      if (hp < this.lastHp) this.stats.damageTaken += this.lastHp - hp;
+      this.lastHp = hp;
+      this.stats.secondsLeft = w.match.clock / TICK_RATE;
+      this.stats.comboMax = Math.max(this.stats.comboMax, w.fighters[0]!.combo);
       for (const e of w.events) {
+        if (e.kind === 'block' && e.fighter === 0) this.stats.blocks += 1;
+        if (e.kind === 'throw' && e.fighter === 1) this.stats.throws += 1;
         this.queue.push(e);
         if (e.kind === 'hit' || e.kind === 'throw') {
           this.shake = Math.max(this.shake, Math.min(1, (e.damage ?? 8) / 12));

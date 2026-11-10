@@ -18,4 +18,5 @@ export const TITAN: CharacterDef = {
     elbow: { ...BASE_MOVES.elbow, damage: 18 },
     roundhouse: { ...BASE_MOVES.roundhouse, startup: 18, recovery: 26, damage: 20 },
   },
+  aiStyle: 'heavy',
 };

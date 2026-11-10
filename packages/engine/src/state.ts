@@ -97,6 +97,9 @@ export interface DuelOptions {
   p2: string;
   intro?: boolean;
   distance?: number;
+  /** Vie max (défaut : vie du personnage) et vie de départ (défaut : vie max), joueur 1 puis joueur 2. */
+  maxHealth?: [number, number];
+  health?: [number, number];
 }
 
 const SEED = 0x2f6b9d1;
@@ -177,6 +180,15 @@ export function createDuelWorld(opts: DuelOptions): World {
     },
   };
   beginRound(w, opts.intro ?? false, opts.distance ?? START_DISTANCE);
+  for (const [i, max] of (opts.maxHealth ?? []).entries()) {
+    const f = w.fighters[i]!;
+    f.maxHealth = Math.max(1, max);
+    f.health = f.maxHealth;
+  }
+  for (const [i, hp] of (opts.health ?? []).entries()) {
+    const f = w.fighters[i]!;
+    f.health = Math.min(f.maxHealth, Math.max(0, hp));
+  }
   return w;
 }
 
