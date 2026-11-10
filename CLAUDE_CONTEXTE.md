@@ -445,3 +445,59 @@ Ouvre http://localhost:5328/?unlockAll .
 ### Modifications à me renvoyer
 
 Pour chaque point : ce qui ne va pas et ce que tu veux à la place, avec le nom du personnage ou du décor. Dis-moi aussi si tu veux que je passe à la phase 6 (histoire, 12 fins, déblocage) ou que j'améliore d'abord les animations (marche, course, saut propres à chaque style) et le feeling des coups.
+
+---
+
+## 14. Session 7 : phase 6 (mode histoire)
+
+Demande : « On peut continuer » (suite du plan : phase 6, histoire, une fin par personnage, déblocage un par un).
+
+### Ce qui est fait
+
+- **Histoire par personnage** : 8 chapitres. Chapitre 4 = ROBOT (ou SHIN si le héros est ROBOT), chapitre 8 = TITAN-01. Les 6 autres rivaux sont tirés du roster avec un ordre propre à chaque héros (`storyOpponents` dans le moteur, déterministe). Niveaux d'IA croissants : 1, 2, 3, 4, 4, 5, 6, 7.
+- **Dialogues** avant chaque combat : présentation du héros (chapitre 1), puis une accroche par chapitre avec le nom de l'adversaire. Cliquer SUIVANT, puis COMBATTRE.
+- **Progression sauvegardée** (localStorage, par navigateur) : chapitre en cours et histoire terminée, par personnage. Une défaite ramène au chapitre perdu (RÉESSAYER LE CHAPITRE).
+- **Fin par personnage** (12 textes de fin) : écran de fin avec titre, texte, boss vaincu et nouveau personnage débloqué. Terminer l'histoire d'un personnage débloque **le suivant verrouillé dans l'ordre du roster** (WOLF, FOX, BULL, STAG, HUSKY, ROBOT, SHIN, BRUTUS, AKIRA, NYX). Il faut 10 fins pour tout débloquer.
+- **Menu** : bouton HISTOIRE → sélection du héros (débloqué, avancement, verrouillé), dialogues, combats.
+- **Interactions** : Échap quitte l'histoire en cours (la progression reste), HUD « HISTOIRE · CHAPITRE n / 8 · adversaire ». Une histoire terminée recommence au chapitre 1 si on la choisit à nouveau.
+- Tests moteur : `story.test.ts` (8 chapitres, jamais soi-même, boss final, histoires différentes pour chaque héros, pas de rival répété de suite, niveaux croissants).
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Dialogues et fins écrits en placeholders** : 2 lignes de présentation par héros, 8 accroches génériques, 12 fins courtes. Pas de vraie intrigue par personnage, pas de dialogues propres à chaque adversaire.
+- **Pas de cinématiques** : texte seul. Pas de portrait ni de mise en scène.
+- **Déblocages de costumes et d'arènes** : non faits (les arènes sont déjà liées aux personnages, pas de choix débloqué).
+- **Histoire en mode un joueur seulement**, contre l'IA. Pas de coopération ni d'histoire à deux.
+- **Pas de sauvegarde de compte** : la progression vit dans le navigateur (phase 11).
+- **Non testé visuellement** : les écrans histoire ont été vérifiés par leur texte (DOM) et l'état de la sim, pas par capture. Les combats d'histoire utilisent le même moteur que l'arcade (testé).
+- Dans l'environnement de test, la sim tourne lentement en arrière-plan : certains tests ont été faits en forçant l'état (`window.__story`, mode dev uniquement).
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : 90 tests (dont 15 nouveaux pour l'histoire) | **90/90 passent** |
+| `npm run typecheck` | OK |
+| `npm run build` | OK |
+| Navigateur, sélection : KAIRO (chapitre 1), VERA (chapitre 1), LOUP débloqué après fin de KAIRO | OK (texte DOM) |
+| Navigateur : dialogue KAIRO (présentation, accroche, adversaire VERA), COMBATTRE lance le combat | OK |
+| Navigateur : victoire chapitre 1 → chapitre 2 et progression sauvegardée | OK |
+| Navigateur : chapitre 8 contre TITAN-01, victoire → écran de fin, déblocage WOLF, sauvegarde | OK |
+| Navigateur : défaite chapitre 1 de VERA → écran DÉFAITE avec RÉESSAYER LE CHAPITRE et MENU | OK |
+
+Bugs trouvés et corrigés : deux héros avaient la même histoire (rotation des rivaux, corrigée) ; accroches écrites avec « il » pour un adversaire féminin (réécrites sans pronoms de personne).
+
+### Tests à faire par toi
+
+Ouvre http://localhost:5328/ (pas `?unlockAll` : il faut voir le déblocage).
+
+1. **Histoire KAIRO** : HISTOIRE → KAIRO → lis les dialogues → COMBATTRE. Gagne le premier chapitre : le chapitre 2 doit s'afficher.
+2. **Défaite** : perds un chapitre, puis RÉESSAYER LE CHAPITRE.
+3. **Échap** pendant un combat d'histoire : retour au menu, puis reprendre le même chapitre.
+4. **Fin** : termine une histoire (8 chapitres). Vérifie le texte de fin et le personnage débloqué. Le déblocage doit persister après rechargement.
+5. **Textes** : les présentations, accroches et fins te semblent-elles justes pour chaque personnage ? Dis-moi lesquelles réécrire.
+6. **Équilibrage** : les niveaux 1 à 7 par chapitre sont-ils progressifs ?
+
+### Modifications à me renvoyer
+
+Pour chaque point : le personnage ou le chapitre concerné, et le texte ou le comportement à changer.

@@ -6,3 +6,4 @@ export * from './sim';
 export * from './ai';
 export * from './arcade';
 export * from './combat/intent';
+export * from './story';

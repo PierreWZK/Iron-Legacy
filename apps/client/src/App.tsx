@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { arcadeQuit, useArcade } from './game/arcade/session';
+import { storyQuit, useStory } from './game/story/session';
+import { StoryScreen } from './game/ui/StoryScreens';
 import { Scene } from './game/Scene';
 import { ArcadeScreen } from './game/ui/ArcadeScreens';
 import { Hud } from './game/ui/Hud';
@@ -16,7 +18,10 @@ export function App() {
       const current = useApp.getState().screen;
       if (current === 'fight') {
         if (useArcade.getState().active) arcadeQuit();
+        else if (useStory.getState().active) storyQuit();
         else backToMenu();
+      } else if (current === 'story') {
+        backToMenu();
       } else if (current === 'arcade') {
         backToMenu();
       }
@@ -27,6 +32,7 @@ export function App() {
 
   if (screen === 'menu') return <div className="h-full w-full bg-iron-bg"><Menu /></div>;
   if (screen === 'arcade') return <div className="h-full w-full bg-iron-bg"><ArcadeScreen /></div>;
+  if (screen === 'story') return <div className="h-full w-full bg-iron-bg"><StoryScreen /></div>;
   return (
     <div className="relative h-full w-full">
       <Scene key={runId} />

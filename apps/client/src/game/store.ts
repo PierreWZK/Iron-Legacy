@@ -50,7 +50,7 @@ export const useHud = create<HudState>(() => ({
   lastHit: null,
 }));
 
-export type Screen = 'menu' | 'fight' | 'arcade';
+export type Screen = 'menu' | 'fight' | 'arcade' | 'story';
 
 export interface AppState {
   screen: Screen;

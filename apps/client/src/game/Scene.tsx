@@ -10,6 +10,7 @@ import { FighterView } from './render/FighterView';
 import { runtime } from './runtime';
 import { useHud } from './store';
 import { arcadeFightOver } from './arcade/session';
+import { storyFightOver } from './story/session';
 
 /** Pilote la sim à pas fixe depuis la boucle de rendu et pousse un résumé vers l'interface (10 Hz). */
 function Simulation({ kb }: { kb: KeyboardInput }) {
@@ -22,7 +23,10 @@ function Simulation({ kb }: { kb: KeyboardInput }) {
     if (w.match.phase === 'over' && !acc.ended) {
       // Fin du combat : en arcade, on enchaîne après une courte pause (sans effet hors arcade).
       acc.ended = true;
-      window.setTimeout(arcadeFightOver, 2500);
+      window.setTimeout(() => {
+        arcadeFightOver();
+        storyFightOver();
+      }, 2500);
     }
     acc.since += delta;
     acc.frames++;

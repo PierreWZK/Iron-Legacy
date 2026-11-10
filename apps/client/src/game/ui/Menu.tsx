@@ -4,6 +4,7 @@ import { fr, t } from '../../i18n/fr';
 import { DUMMY_MODES, type DummyMode, type MatchConfig } from '../runtime';
 import { startFight, useApp } from '../store';
 import { arcadeOpen } from '../arcade/session';
+import { storyOpen } from '../story/session';
 import { useProgress } from '../progress';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -109,6 +110,13 @@ export function Menu() {
           className="ml-4 border border-iron-cyan px-10 py-4 text-lg tracking-[0.3em] text-iron-cyan hover:bg-iron-cyan/10"
         >
           ARCADE
+        </button>
+        <button
+          type="button"
+          onClick={storyOpen}
+          className="ml-4 border border-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-iron-amber hover:bg-iron-amber/10"
+        >
+          HISTOIRE
         </button>
       </div>
     </main>
