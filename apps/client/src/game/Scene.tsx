@@ -1,10 +1,12 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { getCharacter, TICK_RATE } from '@iron/engine';
-import { useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { FightCamera } from './camera/FightCamera';
 import { KeyboardInput } from './input/keyboard';
-import { Arena } from './render/Arena';
+import { ArenaScene, arenaFor } from './render/arenas';
+import { ModelFighter } from './render/ModelFighter';
+import { MODELS } from './render/models';
 import { Effects } from './render/Effects';
 import { FighterView } from './render/FighterView';
 import { runtime } from './runtime';
@@ -57,6 +59,13 @@ function Simulation({ kb }: { kb: KeyboardInput }) {
   return null;
 }
 
+/** Combattant : modèle animé s'il existe, sinon corps procédural. */
+function Fighter({ index, id }: { index: number; id: string }) {
+  const spec = MODELS[id];
+  if (spec) return <ModelFighter index={index} spec={spec} />;
+  return <FighterView index={index} look={getCharacter(id).look} />;
+}
+
 /** Scène de combat. Montée seulement pendant un combat (remontée à chaque nouveau combat). */
 export function Scene() {
   const kb = useMemo(() => new KeyboardInput(), []);
@@ -77,10 +86,12 @@ export function Scene() {
     >
       <Simulation kb={kb} />
       <FightCamera />
-      <Arena />
+      <Suspense fallback={null}>
+        <ArenaScene id={arenaFor(p2)} />
+        <Fighter index={0} id={p1} />
+        <Fighter index={1} id={p2} />
+      </Suspense>
       <Effects />
-      <FighterView index={0} look={getCharacter(p1).look} />
-      <FighterView index={1} look={getCharacter(p2).look} />
     </Canvas>
   );
 }

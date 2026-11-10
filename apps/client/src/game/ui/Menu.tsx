@@ -4,6 +4,7 @@ import { fr, t } from '../../i18n/fr';
 import { DUMMY_MODES, type DummyMode, type MatchConfig } from '../runtime';
 import { startFight, useApp } from '../store';
 import { arcadeOpen } from '../arcade/session';
+import { useProgress } from '../progress';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -14,14 +15,16 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Choice({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function Choice({ active, onClick, children, disabled = false }: { active: boolean; onClick: () => void; children: ReactNode; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={`min-w-44 border px-4 py-3 text-left transition-colors ${
-        active ? 'border-iron-amber bg-iron-amber/15 text-iron-amber' : 'border-white/20 bg-black/40 text-white/80 hover:border-white/50'
+        disabled ? 'cursor-not-allowed border-white/10 bg-black/60 text-white/30'
+          : active ? 'border-iron-amber bg-iron-amber/15 text-iron-amber' : 'border-white/20 bg-black/40 text-white/80 hover:border-white/50'
       }`}
     >
       {children}
@@ -32,6 +35,7 @@ function Choice({ active, onClick, children }: { active: boolean; onClick: () =>
 /** Menu principal : mode, personnages, niveau d'IA, mannequin. Toute option est reliée à la sim. */
 export function Menu() {
   const cfg = useApp((s) => s.config);
+  const unlocked = useProgress((s) => s.unlocked);
   const patch = (p: Partial<MatchConfig>) => useApp.setState((s) => ({ config: { ...s.config, ...p } }));
 
   return (
@@ -49,11 +53,12 @@ export function Menu() {
       <Section title={fr.menu.fighter}>
         {CHARACTER_IDS.map((id) => {
           const c = getCharacter(id);
+          const locked = !unlocked.includes(id);
           return (
-            <Choice key={id} active={cfg.p1 === id} onClick={() => patch({ p1: id })}>
-              <div className="text-lg tracking-widest">{c.name}</div>
-              <div className="text-xs text-white/60">{c.epithet}</div>
-              <div className="mt-1 text-[11px] text-white/40">{c.style}</div>
+            <Choice key={id} active={cfg.p1 === id} disabled={locked} onClick={() => patch({ p1: id })}>
+              <div className="text-lg tracking-widest">{locked ? '???' : c.name}</div>
+              <div className="text-xs text-white/60">{locked ? 'Verrouillé : terminer une histoire' : c.epithet}</div>
+              {!locked && <div className="mt-1 text-[11px] text-white/40">{c.style}</div>}
             </Choice>
           );
         })}

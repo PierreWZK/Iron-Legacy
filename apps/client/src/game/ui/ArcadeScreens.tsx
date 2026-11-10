@@ -7,6 +7,7 @@ import {
   arcadeNext, arcadeQuit, arcadeRetry, arcadeSetChoice, arcadeStart, useArcade, type ArcadeState, type StageResult,
 } from '../arcade/session';
 import type { RankEntry } from '../arcade/ranking';
+import { useProgress } from '../progress';
 
 const fmt = (n: number) => n.toLocaleString('fr-FR');
 
@@ -69,6 +70,7 @@ function ResultsList({ results }: { results: StageResult[] }) {
 }
 
 function SelectView(a: ArcadeState) {
+  const unlocked = useProgress((s) => s.unlocked);
   return (
     <Frame title="ARCADE">
       <section className="space-y-3">
@@ -77,16 +79,18 @@ function SelectView(a: ArcadeState) {
           {CHARACTER_IDS.map((id) => {
             const c = getCharacter(id);
             const active = a.fighter === id;
+            const locked = !unlocked.includes(id);
             return (
               <button
                 key={id}
                 type="button"
+                disabled={locked}
                 aria-pressed={active}
                 onClick={() => arcadeSetChoice({ fighter: id })}
-                className={`min-w-44 border px-4 py-3 text-left ${active ? 'border-iron-amber bg-iron-amber/15 text-iron-amber' : 'border-white/20 bg-black/40 text-white/80'}`}
+                className={`min-w-44 border px-4 py-3 text-left ${locked ? 'cursor-not-allowed border-white/10 bg-black/60 text-white/30' : active ? 'border-iron-amber bg-iron-amber/15 text-iron-amber' : 'border-white/20 bg-black/40 text-white/80'}`}
               >
-                <div className="tracking-widest">{c.name}</div>
-                <div className="text-xs text-white/60">{c.epithet}</div>
+                <div className="tracking-widest">{locked ? '???' : c.name}</div>
+                <div className="text-xs text-white/60">{locked ? 'Verrouillé' : c.epithet}</div>
               </button>
             );
           })}

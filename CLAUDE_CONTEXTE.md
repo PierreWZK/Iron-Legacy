@@ -309,3 +309,72 @@ Pages Quaternius (bouton « Download », dossier Google Drive) :
 - https://quaternius.com/packs/modularscifimegakit.html
 
 Quand c'est fait, dis-moi « fichiers déposés » : je lis les modèles et leurs clips, je confirme les 10 personnages et leurs coups, puis j'intègre.
+
+---
+
+## 12. Session 5 : personnages 3D animés et maps (avant la phase 6)
+
+Demande : « Packs complets. Et oui ça me convient » (roster mixte, déblocage un par un, maps liées aux personnages).
+
+### Ce qui est fait
+
+- **6 nouveaux combattants jouables**, avec modèles 3D animés (Quaternius, CC0) :
+  - **LOUP** (forêt) : rapide et fragile (95 PV), bond long, coups très vifs.
+  - **RENARD** (clairière d'automne) : le plus agile (90 PV), esquive très longue, coups bas rapides.
+  - **TAUREAU** (arène de corrida) : lent et très résistant (135 PV), coups dévastateurs, charge qui renverse.
+  - **CERF** (montagne enneigée) : allonge supérieure (portée 1,25 à 1,6 m), coups de bois qui renversent.
+  - **HUSKY** (toundra glacée) : endurant (115 PV), enchaînements faciles.
+  - **ROBOT** (laboratoire HELIX) : puissant (120 PV), poings lourds, uppercut qui soulève.
+  - Chacun a ses propres vitesses, vie et table de coups (libellés propres : « Morsure vive », « Charge », « Coup de bois »…). Test : les 8 personnages ont des statistiques toutes différentes.
+- **Système de modèles animés** : `render/ModelFighter.tsx` charge glTF/FBX, met le modèle à l'échelle, choisit le clip selon l'état de la sim (attente, marche, galop, saut, attaque, réaction au coup, mort, relevé, victoire), accélère ou ralentit le clip d'attaque pour qu'il dure exactement la durée du coup, et fige l'animation pendant le hit-stop. Configuration par personnage dans `render/models.ts`.
+- **6 maps** : forêt de nuit, clairière d'automne, canyon, montagne enneigée, toundra glacée (toutes avec les pièces du Stylized Nature MegaKit, teintées et éclairées différemment) et laboratoire HELIX (Modular Sci-Fi MegaKit : dalles, murs, colonnes, matériel). On combat dans le décor de l'adversaire. Dojo conservé pour KAIRO et VERA.
+- **Arcade** : l'échelle utilise maintenant les nouveaux adversaires (loup, renard, taureau, cerf, husky, robot, VERA, KAIRO, puis TITAN-01).
+- **Déblocage** (base de la phase 6) : départ avec KAIRO et VERA ; les autres sont verrouillés (« ??? » dans les menus). `unlockCharacter(id)` débloque et sauvegarde (localStorage). **Aucune histoire ne débloque encore** : c'est la phase 6. Pour tester tous les combattants : ajouter `?unlockAll` à l'URL (outil de test, ne modifie pas la sauvegarde).
+- Assets copiés dans `apps/client/public/models/` (85 Mo) avec leurs licences CC0. Inventaire dans `docs/ASSETS.md`.
+
+### Ce qui n'est pas fait (honnêtement)
+
+- **4 humanoïdes** (sur 10 nouveaux) et **leurs 4 maps** : il manque la **Universal Animation Library 1** (la 2 que tu as fournie ne contient ni marche, ni course, ni saut, ni mort génériques ; elle a `Melee_Hook`, `Hit_Knockback`, des clips d'épée et de zombie). Sans elle, les humanoïdes Universal Base Characters n'ont aucune animation.
+- **Phase 6 (histoire)** : dialogues, chapitres, 12 fins, déblocages par les fins : pas commencée.
+- **Coups des animaux** : un seul clip d'attaque (loup, renard, husky : `Attack`) ou deux (cerf, taureau : `Attack_Headbutt` et `Attack_Kick`) : les 12 coups d'un même animal partagent donc ces clips, sans pose spécifique par coup.
+- **Robot** : un seul clip d'attaque (`Robot_Punch`) et aucune réaction au coup propre (clip `Robot_Standing` + inclinaison).
+- **Orientation** : tous les modèles regardent bien vers l'avant sans correction (`yaw` à 0) ; non vérifié visuellement pour tous les clips.
+- **Performances** : les textures du pack nature sont lourdes (40 Mo pour la sélection). Dans l'environnement de test (rendu logiciel) le premier chargement d'une map prend 10 à 15 secondes ; à vérifier sur ta machine.
+- Une partie des pièces (arbres) est clonée, pas instanciée : potentiel de gain de FPS si besoin.
+- KAIRO et VERA gardent leur corps procédural (pas de modèle trouvé pour eux).
+- TITAN-01 (boss) n'a pas encore de modèle 3D propre : il utilise le corps procédural sur la map labo.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : 56 tests (10 nouveaux : chaque personnage jouable se bat 40 s contre KAIRO sans valeur non finie et inflige des dégâts, statistiques toutes différentes, nom/style/biographie présents) | **56/56 passent** |
+| `npm run typecheck` | OK |
+| `npm run build` | OK |
+| Navigateur : menu avec personnages verrouillés (`?unlockAll` pour les débloquer) | OK |
+| Navigateur : loup contre loup en forêt (modèles animés, arbres, rochers, étincelles, combo) | OK (capture) |
+| Navigateur : robot dans le labo (sol métallique, colonnes, éclairage, étincelles, dégâts « CONTRE ! ») | OK (capture) |
+| Navigateur : cerf dans la neige, taureau dans le canyon | OK (captures) |
+
+Bugs trouvés et corrigés :
+- Labo noir : les matériaux métalliques du pack n'ont aucun reflet sans carte d'environnement. Corrigé (environnement de studio dans `LabArena`).
+- Canyon : de gros rochers placés sur le trajet de la caméra la mettaient à l'intérieur (écran orange flou, rendu très lent). Corrigé : tous les grands éléments sont au-delà de 23 m, la caméra reste à moins de 21 m.
+- Les textures du labo étaient cherchées à côté des modèles alors qu'elles sont dans un dossier commun : redirection au chargement.
+- Pas de FPS fiable dans l'environnement de test (rendu logiciel, premier affichage lent).
+
+### Tests à faire par toi
+
+Ouvre http://localhost:5328/?unlockAll (tout est débloqué pour tester).
+
+1. **Menu** : tu vois 8 combattants ; sans `?unlockAll`, seuls KAIRO et VERA sont jouables, les autres affichent « ??? ».
+2. Joue chaque combattant en mode « Combat contre IA » (tu choisis l'adversaire : sa map change avec lui). Les modèles regardent-ils vers l'adversaire ? Les animations suivent-elles les coups (attaque, recul, chute) ?
+3. **Maps** : forêt (loup), clairière (renard), canyon (taureau), neige (cerf), toundra (husky), labo (robot). Les décors te plaisent-ils ? Visibilité des combattants ? La caméra reste-t-elle dégagée ?
+4. **Équilibrage** : le loup est-il trop fragile ? Le taureau trop lent ? Le cerf trop avantagé par sa portée ?
+5. **Performance** : note les FPS (panneau en haut à droite) par map et dis-moi lesquelles saccadent.
+6. **Arcade** : l'échelle (loup, renard, taureau, cerf, husky, robot, VERA, KAIRO, TITAN-01) fonctionne-t-elle ? TITAN-01 n'a pas de vrai modèle.
+7. Ajoute-moi tes retours sur les noms des coups d'animaux et sur la taille des modèles (trop grands ou petits ?).
+
+### Ce que j'attends de toi pour continuer
+
+- Télécharge la **Universal Animation Library 1** (Standard) sur https://quaternius.com/packs/universalanimationlibrary.html (dossier Google Drive) et dépose-la dans `assets/incoming/`, puis dis-moi « UAL1 déposée ». Je fais alors les 4 humanoïdes et leurs 4 maps (toit sous la pluie, usine robotique, temple abandonné, désert industriel).
+- Ensuite : phase 6 (histoire, 12 fins, déblocage un par un).

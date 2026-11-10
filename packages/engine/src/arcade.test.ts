@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aiLevelFor, ARCADE_STAGES, MAX_AI_LEVEL, ROSTER, scoreFight, CHARACTER_IDS } from './index';
+import { aiLevelFor, ARCADE_STAGES, CHARACTER_IDS, MAX_AI_LEVEL, ROSTER, scoreFight, STARTER_IDS } from './index';
 
 describe('arcade — échelle', () => {
   it('8 combats puis un boss final', () => {
@@ -30,9 +30,10 @@ describe('arcade — échelle', () => {
     expect(() => aiLevelFor(42, 'normal')).toThrow(/inconnue/);
   });
 
-  it("le boss n'est pas sélectionnable dans le menu", () => {
+  it("le boss n'est pas jouable, et les deux personnages de départ sont les premiers de l'ordre de déblocage", () => {
     expect(CHARACTER_IDS).not.toContain('titan');
-    expect(CHARACTER_IDS).toEqual(['kairo', 'vera']);
+    expect(CHARACTER_IDS.slice(0, STARTER_IDS.length)).toEqual(STARTER_IDS);
+    expect(STARTER_IDS).toEqual(['kairo', 'vera']);
   });
 });
 
