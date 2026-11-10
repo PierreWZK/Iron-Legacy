@@ -8,38 +8,44 @@ const look = new THREE.Vector3();
 /**
  * Caméra de combat : cadre le milieu des combattants, perpendiculaire à l'axe P1→P2
  * (P1 toujours à gauche). Distance proportionnelle à l'écart pour garder tout le monde visible.
+ * Secousse proportionnelle à la force des impacts (lecture seule de `runtime.shake`).
  */
 export function FightCamera() {
-  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const camera = useThree((st) => st.camera) as THREE.PerspectiveCamera;
 
   useFrame((_, delta) => {
-    const fs = runtime.world.fighters;
+    const w = runtime.world;
+    const p = runtime.prev;
+    if (!w || !p) return;
     const a = runtime.alpha;
+    const pts = w.fighters.map((f, i) => {
+      const pr = p.fighters[i]!.pos;
+      return { x: pr.x + (f.pos.x - pr.x) * a, z: pr.z + (f.pos.z - pr.z) * a };
+    });
     let cx = 0;
     let cz = 0;
-    let maxSpread = 0;
-    const pts = fs.map((f, i) => {
-      const p = runtime.prev.fighters[i]!.pos;
-      return { x: p.x + (f.pos.x - p.x) * a, z: p.z + (f.pos.z - p.z) * a };
-    });
-    for (const p of pts) {
-      cx += p.x;
-      cz += p.z;
+    for (const q of pts) {
+      cx += q.x;
+      cz += q.z;
     }
     cx /= pts.length;
     cz /= pts.length;
-    for (const p of pts) maxSpread = Math.max(maxSpread, Math.hypot(p.x - cx, p.z - cz));
+    let spread = 0;
+    for (const q of pts) spread = Math.max(spread, Math.hypot(q.x - cx, q.z - cz));
 
-    const axis = fightAxis(runtime.world);
-    // Direction de visée = (axis.z, -axis.x) pour que la droite écran soit l'axe P1→P2.
+    const axis = fightAxis(w);
+    // Direction de visée = (axis.z, -axis.x) : la droite de l'écran est l'axe P1→P2.
     const fx = axis.z;
     const fz = -axis.x;
-    const dist = THREE.MathUtils.clamp(4.2 + maxSpread * 2.2, 5.5, 13);
-    tmp.set(cx - fx * dist, 1.9 + maxSpread * 0.25, cz - fz * dist);
+    const dist = THREE.MathUtils.clamp(4.2 + spread * 2.2, 5.5, 13);
+    tmp.set(cx - fx * dist, 1.9 + spread * 0.25, cz - fz * dist);
     look.set(cx, 1.15, cz);
 
     const k = 1 - Math.exp(-delta * 7);
     camera.position.lerp(tmp, k);
+    const sh = runtime.shake * 0.12;
+    camera.position.x += (Math.random() - 0.5) * sh;
+    camera.position.y += (Math.random() - 0.5) * sh;
     camera.lookAt(look);
   });
 

@@ -1,0 +1,103 @@
+import { CHARACTER_IDS, getCharacter } from '@iron/engine';
+import type { ReactNode } from 'react';
+import { fr, t } from '../../i18n/fr';
+import { DUMMY_MODES, type DummyMode, type MatchConfig } from '../runtime';
+import { startFight, useApp } from '../store';
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xs tracking-[0.35em] text-iron-cyan">{title}</h2>
+      <div className="flex flex-wrap gap-3">{children}</div>
+    </section>
+  );
+}
+
+function Choice({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`min-w-44 border px-4 py-3 text-left transition-colors ${
+        active ? 'border-iron-amber bg-iron-amber/15 text-iron-amber' : 'border-white/20 bg-black/40 text-white/80 hover:border-white/50'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Menu principal : mode, personnages, niveau d'IA, mannequin. Toute option est reliée à la sim. */
+export function Menu() {
+  const cfg = useApp((s) => s.config);
+  const patch = (p: Partial<MatchConfig>) => useApp.setState((s) => ({ config: { ...s.config, ...p } }));
+
+  return (
+    <main className="relative mx-auto flex h-full max-w-5xl flex-col gap-7 overflow-y-auto px-4 py-8 font-display text-white sm:px-6">
+      <header>
+        <h1 className="text-4xl tracking-[0.3em] text-iron-amber">{t.title}</h1>
+        <p className="mt-2 text-xs tracking-widest text-white/50">{t.subtitle}</p>
+      </header>
+
+      <Section title={fr.menu.mode}>
+        <Choice active={cfg.mode === 'ai'} onClick={() => patch({ mode: 'ai' })}>{fr.menu.ai}</Choice>
+        <Choice active={cfg.mode === 'training'} onClick={() => patch({ mode: 'training' })}>{fr.menu.training}</Choice>
+      </Section>
+
+      <Section title={fr.menu.fighter}>
+        {CHARACTER_IDS.map((id) => {
+          const c = getCharacter(id);
+          return (
+            <Choice key={id} active={cfg.p1 === id} onClick={() => patch({ p1: id })}>
+              <div className="text-lg tracking-widest">{c.name}</div>
+              <div className="text-xs text-white/60">{c.epithet}</div>
+              <div className="mt-1 text-[11px] text-white/40">{c.style}</div>
+            </Choice>
+          );
+        })}
+      </Section>
+
+      {cfg.mode === 'ai' ? (
+        <>
+          <Section title={fr.menu.opponent}>
+            {CHARACTER_IDS.map((id) => {
+              const c = getCharacter(id);
+              return (
+                <Choice key={id} active={cfg.p2 === id} onClick={() => patch({ p2: id })}>
+                  <div className="text-lg tracking-widest">{c.name}</div>
+                  <div className="text-xs text-white/60">{c.epithet}</div>
+                </Choice>
+              );
+            })}
+          </Section>
+          <Section title={fr.menu.level}>
+            {[1, 2, 3, 4, 5].map((lvl) => (
+              <Choice key={lvl} active={cfg.level === lvl} onClick={() => patch({ level: lvl })}>
+                Niveau {lvl}
+              </Choice>
+            ))}
+          </Section>
+        </>
+      ) : (
+        <Section title={fr.menu.dummy}>
+          {DUMMY_MODES.map((m: DummyMode) => (
+            <Choice key={m} active={cfg.dummy === m} onClick={() => patch({ dummy: m })}>
+              {fr.menu.dummyModes[m]}
+            </Choice>
+          ))}
+        </Section>
+      )}
+
+      <div>
+        <button
+          type="button"
+          onClick={startFight}
+          className="border border-iron-amber bg-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-black hover:brightness-110"
+        >
+          {fr.menu.start}
+        </button>
+      </div>
+    </main>
+  );
+}

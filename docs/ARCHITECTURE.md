@@ -78,11 +78,11 @@ Limite connue : `Math.sqrt/hypot` sont déterministes en IEEE, mais pas `Math.si
 
 | Phase | Contenu | État |
 |---|---|---|
-| 1 | Architecture + prototype 3D | **faite, en attente de validation** |
-| 2 | Premier personnage + déplacements (animations plus riches) | à faire |
-| 3 | Système de combat (frames, hitboxes, blocage, juggle) | à faire |
-| 4 | 2e personnage + IA | à faire |
-| 5 | Premier mode jouable (arcade) | à faire |
+| 1 | Architecture + prototype 3D | **faite, validée** |
+| 2 | Premier personnage (KAIRO), déplacements, animations par coup | **faite, à tester** |
+| 3 | Système de combat : frames, hitbox/hurtbox, blocage, parade, projection, esquive, combos, contre-attaque, juggle simple | **faite, à tester** |
+| 4 | 2e personnage (VERA) + IA (5 niveaux) | **faite, à tester** |
+| 5 | Premier mode jouable | **partiel** : combat contre IA et entraînement jouables ; arcade (8 combats, boss, classement) à faire |
 | 6 | Mode histoire | à faire |
 | 7 | Mode robots | à faire |
 | 8 | Multijoueur en ligne à deux | à faire |
@@ -90,3 +90,41 @@ Limite connue : `Math.sqrt/hypot` sont déterministes en IEEE, mais pas `Math.si
 | 10 | 2v2 et chacun pour soi | à faire |
 | 11 | Menus, progression, sauvegardes, comptes | à faire |
 | 12 | Optimisation, tests, déploiement (Coolify) | à faire |
+
+
+## Mise à jour : phases 2 à 4
+
+### Données de combat (`@iron/engine`)
+
+- `characters/types.ts` : `MoveDef` (frames startup/active/recovery, dégâts, hitstun, blockstun, knockback, launch, knockdown, reach, radius, lunge, cancel, throw) et `CharacterDef` (vitesses, vie, apparence, table de coups).
+- `characters/baseMoves.ts` : table de référence. `kairo.ts` la reprend telle quelle ; `vera.ts` la surcharge partiellement (coups de pied plus rapides, jab plus léger). Un personnage = des données, pas du code.
+- `combat/intent.ts` : bouton(s) pressé(s) + posture → coup.
+- `combat/hit.ts` : hurtbox par posture (debout / accroupi / en l'air), chevauchement hitbox/hurtbox, règle de blocage, mise à l'échelle des dégâts de combo.
+- `combat/resolve.ts` : collecte tous les impacts du tick sur l'état d'entrée, puis les applique (trade possible). Gère blocage, parade (fenêtre de 8 frames), contre-attaque (dégâts et stun majorés), projection et tech.
+- `sim.ts` : machine à états par combattant (`idle`, `attack`, `dodge`, `parry`, `hitstun`, `knockdown`, `getup`, `thrown`…), hit-stop (la sim est figée 4 à 9 frames après un impact), annulations de coups.
+- `match.ts` : intro → combat → KO → manche suivante, match au meilleur des 3 (2 manches). Temps écoulé : le plus de vie gagne ; égalité = manche rejouée.
+- `ai.ts` : IA déterministe qui ne lit que l'état public. Réagit par le blocage, approche, attaque ; 5 niveaux.
+- `state.ts` : RNG déterministe (xorshift32) dans le monde, pour que l'IA reste reproductible.
+
+### Client
+
+- `game/runtime.ts` : boucle à pas fixe (60 Hz), modes `ai` et `training`, mannequin (immobile, bloque, attaque, patrouille), vie infinie.
+- `game/render/pose.ts` : pose procédurale par état et par coup (remplaçable par des AnimationClip sans toucher à la sim).
+- `game/render/Effects.tsx` : étincelles instanciées, alimentées par les événements de la sim (lecture seule).
+- `game/ui/Hud.tsx` : barres de vie, horloge, manches, combo, dégâts flottants, overlays (round, K.O., victoire/défaite), panneau de débogage (frames).
+- `game/ui/Menu.tsx` : mode, personnages, adversaire et niveau d'IA, mannequin.
+
+### Règles de la sim à connaître
+
+- Déterminisme : pas de `Math.random` dans la sim ; le RNG est dans `World.rng`.
+- Un coup de projection ne s'applique que si l'attaquant projette encore. Deux coups simultanés s'appliquent tous les deux.
+- Le knockdown est immunisé aux coups pendant `KNOCKDOWN_TICKS` ; le relevé dure `GETUP_TICKS`.
+- Contrôles : D/Q = avancer/reculer (le joueur est à gauche de l'écran), Z/S = pas de côté, Maj + côté/arrière = esquive, Maj + avant = course.
+
+### Limites connues
+
+- Rendu testé uniquement avec le pilote logiciel de l'environnement de test : FPS non représentatifs d'un GPU réel.
+- Une seule scène et une seule arène (dojo) ; les 7 autres arènes ne sont pas faites.
+- 2 personnages sur 12 ; juggle avancé non fait.
+- Pas de manettes, pas de remappage des touches, pas de son.
+- Pas de réseau (phases 8 à 10), pas de comptes ni de sauvegarde (phase 11).

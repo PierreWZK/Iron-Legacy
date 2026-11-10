@@ -1,4 +1,6 @@
 export * from './constants';
 export * from './input';
 export * from './state';
-export { stepWorld } from './sim';
+export * from './characters';
+export * from './sim';
+export * from './ai';

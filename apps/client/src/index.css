@@ -17,3 +17,12 @@ body,
   overflow: hidden;
   user-select: none;
 }
+
+/* Dégâts flottants (Hud.tsx). */
+@keyframes popup {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, -40px); }
+}
+.popup {
+  animation: popup 0.9s ease-out forwards;
+}

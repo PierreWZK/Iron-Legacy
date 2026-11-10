@@ -95,3 +95,87 @@ Renvoie-moi : ce qui marche, ce qui ne marche pas, les valeurs à changer (vites
 ## 8. Historique des phases
 
 - **Phase 1** : terminée côté développement, en attente de ta validation.
+
+---
+
+## 9. Session 2 : phases 2, 3 et 4 (et début de la 5)
+
+Demande : « Je valide, je te laisse continuer ! » (tu avais demandé d'avancer le plus loin possible tant que chaque phase est jouable et testée).
+
+### Ce qui est fait
+
+- **Phase 2** : premier personnage **KAIRO** (karaté) avec sa table de coups complète : jab, direct, uppercut (accroupi), coup de pied frontal, circulaire, balayette basse, balayage, fente, coude, coup de pied sauté, circulaire sauté, projection. Animation procédurale par coup (le bras ou la jambe s'étend pendant les frames actives). Poses : garde, marche, course, accroupi, saut, esquive, parade, réaction au coup, à terre, relevé, victoire.
+- **Phase 3** : système de combat complet côté moteur :
+  - frames de démarrage / actives / récupération pour chaque coup ;
+  - hitbox/hurtbox (debout, accroupi, en l'air), hauteur haute / moyenne / basse ;
+  - blocage (arrière, arrière + accroupi contre les bas), dégâts de chip ;
+  - parade (arrière + A, fenêtre de 8 frames) avec étourdissement de l'attaquant ;
+  - contre-attaque (frapper pendant le démarrage adverse : dégâts et stun majorés) ;
+  - projection (A + E ensemble à 1 m), tech si les deux joueurs projettent ;
+  - esquive (Maj + arrière ou côté, invulnérable 12 frames) ;
+  - hitstun, blockstun, knockdown, relevé ; knockback ; juggle simplifié (coups qui soulèvent) ;
+  - annulation d'un coup touché vers un autre (jab → direct → circulaire, combo testé) ;
+  - mise à l'échelle des dégâts de combo ; compteur de combo ; hit-stop.
+- **Phase 4** : deuxième personnage **VERA** (kickboxeuse, pieds plus rapides, jab plus léger) et **IA** à 5 niveaux (approche, blocage des attaques adverses, attaques à portée). L'IA est déterministe.
+- **Début de phase 5** : menu (mode, personnages, adversaire et niveau), combat contre IA jouable, entraînement avec mannequin (immobile, bloque, attaque, patrouille), vie infinie (touche I), recommencer (Entrée), retour au menu (Échap).
+- **Interface** : barres de vie, horloge, manches gagnées, combo, dégâts flottants, K.O., victoire/défaite avec « Rejouer » et « Menu », panneau de débogage (FPS, tick, état et frame du coup de chaque combattant), étincelles et secousse caméra sur impact.
+- Documentation : `docs/ARCHITECTURE.md` (section « Mise à jour : phases 2 à 4 »).
+
+### Ce qui n'est pas fait (honnêtement)
+
+- **Arcade** de la phase 5 : pas de 8 combats enchaînés, pas de boss final, pas de classement, pas d'écran de fin. Seul le mode « combat contre IA » est jouable.
+- 10 personnages sur 12 restent à faire, 7 arènes sur 8, modes histoire, robots, survie, défis, 2v2 et 4 joueurs.
+- Juggle avancé : seulement le lancer simple (uppercut, coup sauté circulaire). Pas de juggle sur plusieurs coups.
+- Manettes, remappage des touches, son, musiques, voix : non faits.
+- Pas de rendu validé sur GPU réel. L'environnement de test n'a qu'un pilote logiciel (`Microsoft Basic Render Driver`) : les FPS mesurés (26 à 60 selon l'état de l'onglet) ne reflètent pas une vraie machine.
+- Ombres et lumières ponctuelles coûteuses en rendu logiciel. Pas d'optimisation faite.
+- La sim rattrape au maximum 5 ticks par image : sur une machine très lente, le combat ralentit au lieu de se désynchroniser (voulu, à surveiller).
+- Docker toujours non installé (phase 8).
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : 36 tests Vitest (déplacements, collisions, saut, déterminisme, frame data du jab, blocage, balayette haute/basse, parade, contre-attaque, combo jab→direct→circulaire (77 PV restants), projection, tech, esquive, knockback, KO, manches, temps écoulé, égalité, intro, IA, deux IA qui se battent sans valeur non finie, reproductibilité de l'IA, roster complet) | **36/36 passent** |
+| `npm run typecheck` (strict, moteur et client) | OK |
+| `npm run build` | OK |
+| Navigateur, menu : affichage, sélection de personnage et de mode | OK (capture) |
+| Navigateur, entraînement, vrais événements clavier : D avance, A jab (-4 PV), E direct (-7), F circulaire (-12, échelle de combo) | OK |
+| Navigateur : projection A+E à 0,9 m (VERA à 86 PV, relevé ensuite) ; esquive Maj+Q (état `dodge`) ; parade Q+A (état `parry`) | OK |
+| Navigateur, mode IA : l'IA attaque et touche (P1 à 49 PV après 6 s sans rien faire) | OK |
+| Console : aucune erreur pendant les tests | OK |
+| Capture : projection vue à l'écran (combattant au sol) | OK |
+
+Bugs trouvés et corrigés pendant les tests :
+- Projection : la seconde projection s'appliquait après la tech (la réinitialisation de l'état de la première effaçait le drapeau « coup touché »). Corrigé par un garde dans `applyThrow`.
+- Tests : plusieurs erreurs étaient dans les tests (timing de l'impact, hit-stop non pris en compte, combo lu après remise à zéro, KO sans attendre le coup). Corrigées.
+- Aide à l'écran : Q et D étaient mal décrits (D avance, Q recule). Corrigé.
+
+### Tests à faire par toi
+
+Dans `day-28-iron-legacy` : `npm install` puis `npm run dev`, puis ouvre http://localhost:5328.
+
+1. **Menu** : choisis mode, personnage, adversaire et niveau (IA) ou mannequin (entraînement), puis COMBATTRE.
+2. **Déplacements** : D avance, Q recule, Z/S tournent autour de l'adversaire sans changer la distance. Naturel ? Vitesses trop lentes ou rapides ?
+3. **Coups** : A jab, E direct, R pied frontal, F circulaire, C puis R (balayette basse), C puis F (balayage), avant + A (fente), avant + E (coude), C + E (uppercut), Espace + R ou F (coups sautés). Les coups touchent-ils quand ça semble toucher ? Les dégâts s'affichent-ils ?
+4. **Combos** : enchaîne A, E, F vite. Le compteur de combo apparaît-il ? Le troisième coup touche-t-il ?
+5. **Blocage** : maintiens Q (arrière) pendant qu'on te frappe, puis Q + C contre une balayette. Les dégâts tombent-ils à 1 ?
+6. **Parade** : Q + A juste avant qu'un coup t'atteigne. L'adversaire doit s'arrêter, tu ne prends rien.
+7. **Projection** : A + E ensemble, à courte distance.
+8. **Esquive** : Maj + Q ou Maj + Z/S pendant une attaque.
+9. **Saut** : Espace, puis saut au-dessus de l'adversaire.
+10. **Mannequin** : T pour changer de mode (immobile, bloque, attaque, patrouille). I pour la vie infinie.
+11. **Mode IA** : joue contre les niveaux 1 et 5. Le niveau 1 doit être battable, le 5 nettement plus dur. Le match se termine-t-il bien (2 manches, victoire/défaite, Rejouer, Menu) ?
+12. **Échap** : retour au menu. **Entrée** : recommencer la manche.
+13. **Performance** : note les FPS (panneau de débogage) sur ta machine. Ça saccade ?
+14. **Navigateurs** : Chrome et Firefox au minimum.
+
+### Modifications à me renvoyer
+
+Pour chaque point : ce qui ne marche pas, ce qui te semble mauvais (valeurs, ressenti), et ce que tu veux à la place. En particulier :
+- vitesses, portée des coups, durée des stuns (ressenti) ;
+- tes choix de touches si tu veux les changer ;
+- niveaux de l'IA trop faciles ou trop durs ;
+- si tu veux que je finisse l'**arcade** (phase 5) avant la suite, ou si on enchaîne sur les personnages.
+
+Branche : `feat/phases-2-4-combat`, créée à partir de `feat/phase-1-prototype`. Rien n'est poussé.
