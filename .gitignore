@@ -5,3 +5,5 @@ dist
 !.env.example
 *.log
 .vite
+assets/extracted/
+assets/incoming/*.zip
