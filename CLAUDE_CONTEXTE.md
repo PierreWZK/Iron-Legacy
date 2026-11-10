@@ -233,3 +233,79 @@ Bugs trouvés pendant les tests : aucun dans la logique. Une erreur 500 transito
 - Score : les poids te semblent-ils justes ?
 - Textes de fin : à réécrire ou à raccourcir ?
 - Quand tu veux, je passe aux personnages suivants (roster) ou à l'histoire (phase 6).
+
+---
+
+## 11. Session 4 : recherche des personnages et des maps (avant la phase 6)
+
+Demande : « Trouve 10 personnages 3D dans le même thème, et 10 maps dans le même thème que chacun (un ours = forêt, un robot = labo scientifique…). Ensuite phase 6 avec une fin pour chaque personnage. On débloque les personnages un à un : on commence avec 2 personnages, chaque fin débloque un personnage. »
+
+### Décisions prises
+
+| Sujet | Décision |
+|---|---|
+| Style | Quaternius low-poly, mélange : animaux + robot + humanoïdes (même auteur, CC0, style cohérent) |
+| Maps | Packs 3D Quaternius (forêt, labo) + décors composés en code pour les autres thèmes |
+| Récupération des fichiers | Tu télécharges les packs toi-même (Google Drive) et tu les déposes dans `assets/incoming/` ; je m'occupe de l'intégration |
+| Déblocage (phase 6) | Départ : KAIRO et VERA. Chaque fin d'histoire débloque un personnage. Détails ci-dessous |
+
+### Ce que j'ai vérifié (sources lues)
+
+- **Ultimate Animated Animal Pack** (Quaternius, CC0, glTF/FBX/OBJ/Blend) : 12 animaux, plus de 12 animations chacun (Attack, Death, Kicks, Gallops, Walk, Jump…). Contenu du dossier glTF : Alpaca, Bull, Cow, Deer, Donkey, Fox, Horse_White, Horse, Husky, ShibaInu, Stag, Wolf. **Pas d'ours.**
+- **Animated Robot Pack** (Quaternius, CC0) : un robot, **FBX/OBJ/Blend seulement** (pas de glTF : conversion nécessaire).
+- **Universal Base Characters** (Quaternius, CC0, glTF/FBX) : 6 modèles humanoïdes (superhéros, normaux, ados, homme et femme), 20 coiffures, armature humanoïde, compatible avec la Universal Animation Library.
+- **Universal Animation Library 1 et 2** (Quaternius, CC0) : plus de 130 animations sur armature humanoïde, formats glTF/GLB annoncés. Noms exacts des clips de combat (coup de poing, coup de pied, réaction au coup) **non vérifiés**.
+- **Stylized Nature MegaKit** (Quaternius, CC0, glTF) : forêt (110+ modèles : arbres, plantes, rochers).
+- **Modular Sci-Fi MegaKit** (Quaternius, CC0, glTF/FBX/OBJ) : 277 modules (couloirs, salles, labo). Environ 60 à 70 % du pack est gratuit.
+- **KayKit Character Animations** (CC0) : Attack, Heavy Attack, Block, Spinning, Combo, Roll, Dash, Defeat… Pas de coup de poing/pied ni réaction au coup listés. Non retenu.
+
+### Ce que je n'ai pas pu vérifier
+
+- Les noms de clips animés des animaux, du robot et de la Universal Animation Library : à lire dans les fichiers une fois reçus.
+- Les tailles des packs (non indiquées sur les pages).
+- itch.io (KayKit) bloque les robots par une vérification anti-bot : je ne la contourne pas.
+- L'outil de récupération de pages `ctx_fetch_and_index` du plugin context-mode est en panne (`Cannot find module 'turndown'`) ; j'ai lu les pages avec le navigateur intégré.
+
+### Roster proposé (10 nouveaux, 12 au total)
+
+| # | Personnage | Source | Carte proposée |
+|---|---|---|---|
+| 1 | Loup | Animal Pack | Forêt de nuit (Stylized Nature MegaKit) |
+| 2 | Renard | Animal Pack | Clairière d'automne (même pack, teinte et brouillard différents) |
+| 3 | Taureau | Animal Pack | Arène de corrida (sable, rochers, composée en code) |
+| 4 | Cerf (stag) | Animal Pack | Montagne enneigée (nature kit teinté neige) |
+| 5 | Husky | Animal Pack | Toundra glacée (composée en code) |
+| 6 | Robot | Animated Robot Pack | Laboratoire HELIX (Modular Sci-Fi MegaKit) |
+| 7 à 10 | Quatre humanoïdes (variantes de Universal Base Characters) | Universal Base Characters | Toit sous la pluie, usine robotique (Sci-Fi MegaKit), temple abandonné, désert industriel (en code) |
+
+KAIRO et VERA gardent le dojo actuel et une rue nocturne.
+
+Limite à connaître : les animaux restent à quatre pattes et n'ont pas de coup de poing ni de pied. Leurs coups seront des attaques propres (coup de tête, morsure, charge, ruade) basées sur les animations Attack et Kicks du pack. Le moteur de combat ne change pas, seules les données de coups et les clips associés sont à écrire.
+
+### Déblocage proposé pour la phase 6
+
+- Départ : KAIRO et VERA.
+- Chaque personnage a son histoire (dialogues avant les combats) et une fin propre.
+- Terminer l'histoire d'un personnage pour la première fois débloque le **prochain personnage verrouillé**, dans un ordre fixe.
+- Il faut donc 10 fins pour tout débloquer. Les fins des personnages débloqués restent rejouables.
+
+### Ce que je te demande de télécharger
+
+Dépose les dossiers dans `day-28-iron-legacy/assets/incoming/` (non versionné) :
+1. Ultimate Animated Animal Pack : dossier **glTF** (Wolf, Fox, Bull, Stag, Husky), plus le fichier `License.txt`.
+2. Animated Robot Pack : tout le dossier.
+3. Universal Base Characters : dossier glTF.
+4. Universal Animation Library 1 et/ou 2 : dossiers glTF/GLB.
+5. Stylized Nature MegaKit : dossier glTF.
+6. Modular Sci-Fi MegaKit : dossier glTF.
+
+Pages Quaternius (bouton « Download », dossier Google Drive) :
+- https://quaternius.com/packs/ultimateanimatedanimals.html
+- https://quaternius.com/packs/animatedrobot.html
+- https://quaternius.com/packs/universalbasecharacters.html
+- https://quaternius.com/packs/universalanimationlibrary.html
+- https://quaternius.com/packs/universalanimationlibrary2.html
+- https://quaternius.com/packs/stylizednaturemegakit.html
+- https://quaternius.com/packs/modularscifimegakit.html
+
+Quand c'est fait, dis-moi « fichiers déposés » : je lis les modèles et leurs clips, je confirme les 10 personnages et leurs coups, puis j'intègre.
