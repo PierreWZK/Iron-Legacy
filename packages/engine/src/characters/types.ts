@@ -1,18 +1,40 @@
-/** Identifiants de coups : un coup = une entrée de table par personnage (données, pas de code). */
-export type MoveId =
-  | 'jab' | 'cross' | 'uppercut' | 'frontKick' | 'roundhouse' | 'lowKick'
-  | 'sweep' | 'lunge' | 'elbow' | 'jumpKick' | 'airRound' | 'throw';
+/**
+ * Identifiants de coups. Un coup = une entrée de table par personnage (données, pas de code).
+ * Convention de notation (comme Tekken) : LP/RP = poing gauche/droit, LK/RK = pied gauche/droit ;
+ * f = avant, b = arrière, d = accroupi, df = accroupi + avant, run = en courant, air = en l'air.
+ */
+export const MOVE_IDS = [
+  // Debout, sans direction : LP, RP, LK, RK
+  'jab', 'cross', 'frontKick', 'roundhouse',
+  // Avant + bouton : f+LP, f+RP, f+LK, f+RK
+  'lunge', 'elbow', 'kneeLift', 'axeKick',
+  // Arrière + bouton (arrière + LP = parade) : b+RP, b+LK, b+RK
+  'backFist', 'sideKick', 'spinKick',
+  // Accroupi + bouton : d+LP, d+RP, d+LK, d+RK
+  'lowJab', 'uppercut', 'lowKick', 'sweep',
+  // Accroupi + avant + bouton : df+LP, df+RP, df+LK, df+RK
+  'hookPunch', 'risingHook', 'slideKick', 'dragonKick',
+  // En courant : run+poing, run+pied
+  'tackle', 'flyingKick',
+  // En l'air : LP, RP, LK, RK
+  'airPunch', 'airElbow', 'jumpKick', 'airRound',
+  // Projections : LP+RP, LP+LK, RP+RK, LK+RK
+  'throw', 'hipToss', 'suplex', 'legThrow',
+] as const;
 
-export const MOVE_IDS: readonly MoveId[] = [
-  'jab', 'cross', 'uppercut', 'frontKick', 'roundhouse', 'lowKick',
-  'sweep', 'lunge', 'elbow', 'jumpKick', 'airRound', 'throw',
-];
+export type MoveId = (typeof MOVE_IDS)[number];
+
+/** Les 4 projections (voir `MoveDef.throw`). */
+export const THROW_IDS: readonly MoveId[] = ['throw', 'hipToss', 'suplex', 'legThrow'];
 
 export type Height = 'high' | 'mid' | 'low';
-/** Membre utilisé pour l'animation procédurale du coup. */
+
+/** Style d'animation procédurale du coup (une pose par style, voir le client). */
 export type Limb =
-  | 'punchL' | 'punchR' | 'kickL' | 'kickR' | 'lunge' | 'elbow'
-  | 'uppercut' | 'jumpKick' | 'airRound' | 'throw';
+  | 'punchL' | 'punchR' | 'hook' | 'risingHook' | 'backFist' | 'elbow' | 'uppercut' | 'lunge'
+  | 'kickL' | 'kickR' | 'knee' | 'axe' | 'sideKick' | 'spinKick' | 'slide' | 'dragon'
+  | 'tackle' | 'flying' | 'airPunch' | 'airElbow' | 'jumpKick' | 'airRound'
+  | 'throw' | 'hipToss' | 'suplex' | 'legThrow';
 
 /** Données d'un coup. Frames à 60 Hz : total = startup + active + recovery. */
 export interface MoveDef {
@@ -39,7 +61,14 @@ export interface MoveDef {
   lunge: number;
   /** Peut être annulé en un autre coup une fois le coup touché ou bloqué. */
   cancel: boolean;
+  /** Enchaînement « string » : le coup suivant peut être lancé pendant la récupération, même si le coup a manqué ou été bloqué. */
+  string?: boolean;
+  /** Projection : saisit l'adversaire puis joue une séquence. */
   throw?: boolean;
+  /** Durée (ticks) de la séquence de projection après la prise. */
+  sequence?: number;
+  /** Position d'atterrissage de l'adversaire projeté, en mètres devant l'attaquant (négatif = derrière). */
+  landing?: number;
 }
 
 export interface Speeds {

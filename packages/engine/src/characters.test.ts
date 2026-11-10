@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCharacter, MOVE_IDS, ROSTER, type MoveId } from './index';
+import { getCharacter, MOVE_IDS, ROSTER, THROW_IDS, type MoveId } from './index';
 
 describe('roster', () => {
   it('chaque personnage définit tous les coups avec des frames valides', () => {
@@ -15,10 +15,17 @@ describe('roster', () => {
     }
   });
 
-  it('seule la projection est marquée throw', () => {
+  it('seules les 4 projections sont marquées throw, avec séquence et atterrissage', () => {
     for (const ch of Object.values(ROSTER)) {
       for (const move of MOVE_IDS) {
-        expect(Boolean(ch.moves[move].throw)).toBe(move === 'throw');
+        const m = ch.moves[move];
+        expect(Boolean(m.throw), `${ch.id}.${move}`).toBe(THROW_IDS.includes(move));
+        if (m.throw) {
+          expect(m.sequence, `${ch.id}.${move} sequence`).toBeGreaterThan(20);
+          expect(m.landing, `${ch.id}.${move} landing`).toBeDefined();
+          // La récupération couvre toute la séquence.
+          expect(m.recovery, `${ch.id}.${move} recovery`).toBeGreaterThanOrEqual((m.sequence ?? 0) + 10);
+        }
       }
     }
   });

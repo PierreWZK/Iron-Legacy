@@ -1,14 +1,15 @@
 import {
   ARENA_RADIUS, DODGE_MOVE_TICKS, DODGE_TICKS, DT, FIGHTER_RADIUS, GETUP_TICKS, GRAVITY,
-  KNOCKDOWN_TICKS, KNOCK_DECAY, MIN_DIST, PARRY_TICKS, PUSH_MAX_HEIGHT,
+  KNOCKDOWN_TICKS, KNOCK_DECAY, MIN_DIST, PARRY_TICKS, PUSH_MAX_HEIGHT, THROW_GRAB_DISTANCE,
 } from './constants';
 import { getCharacter, getMove, type Speeds } from './characters';
-import { attackIntent, type Stance } from './combat/intent';
+import { attackIntent, THROW_PAIRS, type Stance } from './combat/intent';
 import { isAirborne } from './combat/hit';
 import { resolveCombat } from './combat/resolve';
 import { Btn, has, type InputFrame } from './input';
 import { updateMatch } from './match';
 import { endMove, type DodgeSub, type Fighter, type Vec3, type World } from './state';
+import type { MoveId } from './characters';
 
 const ATTACK_BUTTONS = Btn.LP | Btn.RP | Btn.LK | Btn.RK;
 const DODGE_TRIGGERS = Btn.Shift | Btn.Back | Btn.SideL | Btn.SideR;
@@ -33,6 +34,7 @@ export function stepWorld(w: World, inputs: readonly InputFrame[]): void {
   for (const f of w.fighters) clampToArena(f);
   resolvePushboxes(w.fighters);
   for (const f of w.fighters) clampToArena(f);
+  pinThrown(w);
   resolveCombat(w);
   updateMatch(w);
   w.tick++;
@@ -42,8 +44,10 @@ function stepFighter(w: World, f: Fighter, input: InputFrame, snap: Vec3[]): voi
   const pressed = input & ~f.prevInput;
   f.prevInput = input;
   f.input = input;
-  if (pressed & Btn.LP) f.lastLP = w.tick;
-  if (pressed & Btn.RP) f.lastRP = w.tick;
+  if (pressed & Btn.LP) f.lastPress.lp = w.tick;
+  if (pressed & Btn.RP) f.lastPress.rp = w.tick;
+  if (pressed & Btn.LK) f.lastPress.lk = w.tick;
+  if (pressed & Btn.RK) f.lastPress.rk = w.tick;
   if (f.comboTimer > 0) f.comboTimer--;
   else f.combo = 0;
   if (w.match.phase === 'fight') control(w, f, input, pressed, snap);
@@ -93,8 +97,9 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
   const shift = has(input, Btn.Shift);
   const side = (has(input, Btn.SideR) ? 1 : 0) - (has(input, Btn.SideL) ? 1 : 0);
 
-  if (throwPressed(w, f, pressed)) {
-    startMove(f, 'throw');
+  const throwId = throwIntent(w, f, pressed);
+  if (throwId) {
+    startMove(f, throwId);
     return;
   }
   if ((pressed & Btn.LP) && back && !crouch) {
@@ -112,7 +117,8 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
     }
   }
   if (pressed & ATTACK_BUTTONS) {
-    const id = attackIntent(input, pressed, crouch ? 'crouch' : 'stand');
+    const running = f.action === 'runFwd' && shift && fwd;
+    const id = attackIntent(input, pressed, crouch ? 'crouch' : 'stand', running);
     if (id) {
       startMove(f, id);
       return;
@@ -156,9 +162,12 @@ function advanceAttack(f: Fighter, input: InputFrame, pressed: InputFrame): void
     endAction(f);
     return;
   }
-  if (m.cancel && f.moveHit && (pressed & ATTACK_BUTTONS)) {
-    const next = attackIntent(input, pressed, stanceOf(input, f));
-    if (next) startMove(f, next);
+  // Enchaînement : annulation sur coup touché/bloqué, ou « string » pendant la récupération (même à vide).
+  const recovering = f.moveFrame > m.startup + m.active;
+  const canChain = (m.cancel && f.moveHit) || (m.string === true && recovering);
+  if (canChain && (pressed & ATTACK_BUTTONS)) {
+    const next = attackIntent(input, pressed, stanceOf(input, f), false);
+    if (next && !getMove(f.characterId, next).throw) startMove(f, next);
   }
 }
 
@@ -177,10 +186,17 @@ function stanceOf(input: InputFrame, f: Fighter): Stance {
   return has(input, Btn.Crouch) ? 'crouch' : 'stand';
 }
 
-function throwPressed(w: World, f: Fighter, pressed: InputFrame): boolean {
-  const lp = (pressed & Btn.LP) !== 0;
-  const rp = (pressed & Btn.RP) !== 0;
-  return (lp && w.tick - f.lastRP <= THROW_WINDOW) || (rp && w.tick - f.lastLP <= THROW_WINDOW);
+/** Deux boutons pressés à moins de THROW_WINDOW ticks l'un de l'autre → projection correspondante. */
+function throwIntent(w: World, f: Fighter, pressed: InputFrame): MoveId | null {
+  const last: Record<number, number> = {
+    [Btn.LP]: f.lastPress.lp, [Btn.RP]: f.lastPress.rp, [Btn.LK]: f.lastPress.lk, [Btn.RK]: f.lastPress.rk,
+  };
+  for (const [a, b, id] of THROW_PAIRS) {
+    const aNow = (pressed & a) !== 0;
+    const bNow = (pressed & b) !== 0;
+    if ((aNow && w.tick - last[b]! <= THROW_WINDOW) || (bNow && w.tick - last[a]! <= THROW_WINDOW)) return id;
+  }
+  return null;
 }
 
 function startAction(f: Fighter, action: Fighter['action'], sub: DodgeSub = null): void {
@@ -347,5 +363,29 @@ function clampToArena(f: Fighter): void {
   if (d > max) {
     f.pos.x *= max / d;
     f.pos.z *= max / d;
+  }
+}
+
+/**
+ * Pendant la séquence d'une projection, l'adversaire suit l'attaquant : tenu devant lui, puis
+ * déplacé vers sa position d'atterrissage (`landing`). Le rendu ajoute l'arc et les rotations.
+ */
+function pinThrown(w: World): void {
+  for (const d of w.fighters) {
+    if (d.action !== 'thrown' || d.thrownBy === null) continue;
+    const a = w.fighters[d.thrownBy];
+    const m = a && a.action === 'attack' && a.move ? getMove(a.characterId, a.move) : null;
+    if (!a || !m || !m.throw) {
+      d.thrownBy = null;
+      continue;
+    }
+    const p = (a.moveFrame - (m.startup + 1)) / (m.sequence ?? 40);
+    const k = Math.min(1, Math.max(0, (p - 0.35) / 0.4));
+    const off = THROW_GRAB_DISTANCE + ((m.landing ?? 1.2) - THROW_GRAB_DISTANCE) * k;
+    d.pos.x = a.pos.x + a.facing.x * off;
+    d.pos.z = a.pos.z + a.facing.z * off;
+    d.pos.y = 0;
+    d.vel.x = d.vel.y = d.vel.z = 0;
+    if (p >= 1) d.thrownBy = null;
   }
 }

@@ -12,12 +12,12 @@ export interface ArcadeStage {
 export const ARCADE_STAGES: readonly ArcadeStage[] = [
   { opponent: 'wolf', level: 1, boss: false },
   { opponent: 'fox', level: 2, boss: false },
-  { opponent: 'bull', level: 2, boss: false },
-  { opponent: 'stag', level: 3, boss: false },
-  { opponent: 'husky', level: 3, boss: false },
-  { opponent: 'robot', level: 4, boss: false },
-  { opponent: 'vera', level: 4, boss: false },
-  { opponent: 'kairo', level: 5, boss: false },
+  { opponent: 'shin', level: 2, boss: false },
+  { opponent: 'bull', level: 3, boss: false },
+  { opponent: 'akira', level: 3, boss: false },
+  { opponent: 'stag', level: 4, boss: false },
+  { opponent: 'brutus', level: 4, boss: false },
+  { opponent: 'robot', level: 5, boss: false },
   { opponent: 'titan', level: 5, boss: true },
 ];
 

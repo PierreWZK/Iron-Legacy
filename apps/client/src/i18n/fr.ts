@@ -1,7 +1,7 @@
 /** Textes de l'interface (FR). Ajouter `en.ts` plus tard sans toucher aux composants. */
 export const fr = {
   title: 'IRON LEGACY',
-  subtitle: 'Prototype — phases 2 à 4',
+  subtitle: 'Prototype — personnages en 3D',
   menu: {
     mode: 'Mode',
     ai: 'Combat contre IA',
@@ -16,16 +16,15 @@ export const fr = {
   controls: {
     heading: 'Commandes',
     lines: [
-      'D : avancer · Q : reculer (ou flèches droite / gauche)',
-      "Z / S (ou flèches haut / bas) : pas de côté autour de l'adversaire",
-      'A : poing gauche (jab) · E : poing droit (direct)',
-      'R : pied gauche · F : pied droit (circulaire)',
-      'Espace : saut · C : s\'accroupir (coups bas avec R / F)',
-      'Maj + avant : course · Maj + côté ou arrière : esquive',
-      'Arrière + A : parade · A + E ensemble : projection',
-      'Avant + A : fente · Avant + E : coude',
-      'Échap : menu · Entrée : recommencer',
-      'Entraînement : T mannequin · I vie infinie',
+      'D : avancer · Q : reculer · Z / S : pas de côté (flèches aussi)',
+      'A / E : poing gauche / droit · R / F : pied gauche / droit',
+      'Direction + bouton = coup différent : avant, arrière, C (accroupi), C + avant',
+      'Ex. : C + R = balayette · C + F = balayage · avant + F = coup de hache',
+      'Maj + avant (course) puis un bouton : charge ou coup volant',
+      'Deux boutons ensemble : projection (A+E, A+R, E+F, R+F)',
+      'Arrière + A : parade · Maj + côté ou arrière : esquive · Espace : saut',
+      'Enchaîner : bouton suivant pendant la récupération du coup',
+      'Échap : menu · Entrée : recommencer · T mannequin · I vie infinie',
     ],
   },
   hud: {

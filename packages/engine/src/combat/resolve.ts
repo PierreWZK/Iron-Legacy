@@ -1,7 +1,7 @@
 import { getMove, type MoveDef } from '../characters';
 import {
   COMBO_RESET_TICKS, COUNTER_BONUS_STUN, COUNTER_DAMAGE, HEIGHT_Y, HITSTOP_BLOCK,
-  HITSTOP_COUNTER, HITSTOP_HIT, KNOCKDOWN_TICKS, PARRY_STUN, PARRY_WINDOW, TECH_STUN, THROW_RANGE,
+  HITSTOP_COUNTER, HITSTOP_HIT, KNOCKDOWN_TICKS, PARRY_STUN, PARRY_WINDOW, TECH_STUN, THROW_GRAB_DISTANCE, THROW_RANGE,
 } from '../constants';
 import { endMove, type Fighter, type World } from '../state';
 import { canBeHit, comboScale, hitboxOverlaps, isAirborne, isBlocking } from './hit';
@@ -30,7 +30,7 @@ function unit(dx: number, dz: number): { x: number; z: number } {
 /** Projection : impossible sur un combattant en l'air, en attaque, en esquive ou déjà projeté. */
 function canBeThrown(d: Fighter): boolean {
   if (d.pos.y > 0) return false;
-  if (d.action === 'attack') return d.move === 'throw';
+  if (d.action === 'attack') return d.move !== null && getMove(d.characterId, d.move).throw === true;
   return !['dodge', 'jump', 'thrown', 'knockdown', 'getup'].includes(d.action);
 }
 
@@ -116,16 +116,16 @@ function applyStrike(w: World, { a, d, m, counter, parry }: Candidate): void {
   d.lastHitBy = a.id;
   a.combo += 1;
   a.comboTimer = COMBO_RESET_TICKS;
-  w.events.push({ kind: 'hit', fighter: d.id, x: hx, y: hy, z: hz, damage: dmg, counter, combo: a.combo });
+  w.events.push({ kind: 'hit', fighter: d.id, x: hx, y: hy, z: hz, damage: dmg, counter, combo: a.combo, move: a.move ?? undefined });
   w.hitstop = Math.max(w.hitstop, counter ? HITSTOP_COUNTER : HITSTOP_HIT);
 }
 
 function applyThrow(w: World, { a, d, m }: Candidate): void {
-  // Un défenseur déjà projeté par un autre tick ou une tech ne peut plus être projeté.
-  if (a.action !== 'attack' || a.move !== 'throw') return;
+  // Un projeteur déjà étourdi (tech ou coup reçu) ne projette plus.
+  if (a.action !== 'attack' || !a.move || getMove(a.characterId, a.move).throw !== true) return;
   a.moveHit = true;
-  const dm = d.action === 'attack' && d.move === 'throw' ? getMove(d.characterId, 'throw') : null;
-  const defenderThrowing = dm !== null && d.moveFrame > dm.startup && d.moveFrame <= dm.startup + dm.active;
+  const dm = d.action === 'attack' && d.move ? getMove(d.characterId, d.move) : null;
+  const defenderThrowing = dm !== null && dm.throw === true && d.moveFrame > dm.startup && d.moveFrame <= dm.startup + dm.active;
   if (defenderThrowing) {
     // Tech : les deux projections s'annulent.
     d.moveHit = true;
@@ -136,15 +136,17 @@ function applyThrow(w: World, { a, d, m }: Candidate): void {
   }
   endMove(d);
   d.action = 'thrown';
-  d.stun = KNOCKDOWN_TICKS;
+  // Séquence animée (l'attaquant la rejoue côté rendu), puis le projeté reste à terre.
+  d.stun = (m.sequence ?? 40) + KNOCKDOWN_TICKS;
   d.airStun = false;
   d.vel = { x: 0, y: 0, z: 0 };
-  d.pos = { x: a.pos.x + a.facing.x * 0.8, y: 0, z: a.pos.z + a.facing.z * 0.8 };
+  d.thrownBy = a.id;
+  d.pos = { x: a.pos.x + a.facing.x * THROW_GRAB_DISTANCE, y: 0, z: a.pos.z + a.facing.z * THROW_GRAB_DISTANCE };
   d.facing = { x: -a.facing.x, z: -a.facing.z };
   d.health = Math.max(0, d.health - m.damage);
   d.lastHitBy = a.id;
   a.combo += 1;
   a.comboTimer = COMBO_RESET_TICKS;
-  w.events.push({ kind: 'throw', fighter: d.id, x: d.pos.x, y: 1, z: d.pos.z, damage: m.damage });
+  w.events.push({ kind: 'throw', fighter: d.id, x: d.pos.x, y: 1, z: d.pos.z, damage: m.damage, move: a.move });
   w.hitstop = Math.max(w.hitstop, HITSTOP_HIT);
 }

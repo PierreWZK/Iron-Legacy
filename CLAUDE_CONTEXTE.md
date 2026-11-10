@@ -378,3 +378,70 @@ Ouvre http://localhost:5328/?unlockAll (tout est débloqué pour tester).
 
 - Télécharge la **Universal Animation Library 1** (Standard) sur https://quaternius.com/packs/universalanimationlibrary.html (dossier Google Drive) et dépose-la dans `assets/incoming/`, puis dis-moi « UAL1 déposée ». Je fais alors les 4 humanoïdes et leurs 4 maps (toit sous la pluie, usine robotique, temple abandonné, désert industriel).
 - Ensuite : phase 6 (histoire, 12 fins, déblocage un par un).
+
+---
+
+## 13. Session 6 : personnages dessinés en code, moteur de coups à la Tekken
+
+Demande : « Dessine-moi les personnages directement en 3D, humanoïdes. N'utilise plus les modèles que j'ai téléchargés. Je veux un jeu qui ressemble à Tekken, même dans l'animation : attraper quelqu'un fait une prise spéciale, des attaques différentes selon les mouvements (se baisser + pied gauche ≠ se baisser + pied droit). »
+
+### Ce qui est fait
+
+- **Plus aucun modèle téléchargé** : `ModelFighter`, `models.ts`, les décors nature et labo à base de glTF et le dossier `public/models` (85 Mo) sont supprimés. Le build fait 1,3 Mo. Les packs restent dans `assets/` (non versionné) mais ne sont plus utilisés.
+- **12 combattants humanoïdes dessinés en code** (même squelette, donc toutes les animations marchent sur tous) :
+  - KAIRO (kimono blanc, ceinture noire, bandeau), VERA (tenue de sport, gants rouges, queue de cheval), SHIN (ninja : cagoule, bandeau et écharpe qui flottent), AKIRA (judoka), NYX (combinaison à lignes lumineuses, longue chevelure), BRUTUS (lutteur, torse nu, ceinture dorée) ;
+  - LOUP, RENARD, HUSKY (museau, oreilles, queue qui se balance), TAUREAU (cornes, anneau), CERF (bois ramifiés) ;
+  - ROBOT (corps en blocs, noyau lumineux), plus le boss TITAN-01 (plus grand, cornes, visière rouge).
+  - Proportions propres (taille, épaules, torse, jambes).
+- **Moteur de coups par direction + bouton** : 27 coups accessibles (debout, avant, arrière, accroupi, accroupi + avant, en courant, en l'air). Chaque bouton donne un coup différent selon la direction : **bas + pied gauche = balayette basse, bas + pied droit = balayage**. Liste complète dans `docs/MOVELIST.md`.
+- **Enchaînements (strings)** : certains coups peuvent être suivis d'un autre pendant leur récupération, même à vide ; la direction du second bouton compte.
+- **4 projections** (deux boutons ensemble) avec chorégraphie à deux corps : projection (prise, élévation, plaquage), projection de hanche, **suplex** (salto par-dessus l'attaquant, atterrissage derrière), projection de jambe. Le projeteur est intouchable pendant la séquence ; tech si l'adversaire projette en même temps.
+- **Poses de tous les coups** (crochet, genou, coup de hache, revers, coup de pied latéral, coup tournant où le corps se retourne, glissade, coup du dragon, charge d'épaule, coup de pied volant, coups en l'air…).
+- **4 nouveaux combattants jouables** : SHIN (ninja rapide), BRUTUS (lutteur : 140 PV, projections jusqu'à 30 dégâts), AKIRA (judoka : projections très rapides et variées), NYX (contres et coups bas vifs). **12 jouables au total** + TITAN-01 (boss).
+- **13 décors dessinés en code** : dojo (KAIRO), rue nocturne (VERA), forêt (loup), clairière d'automne (renard), canyon (taureau), montagne enneigée (cerf), toundra (husky), laboratoire (robot), toit sous la pluie (SHIN), usine (BRUTUS), temple abandonné (AKIRA), désert industriel (NYX), forteresse (TITAN-01). Chaque décor a son éclairage, son brouillard et ses éléments.
+- **IA** : utilise toute la variété (directions, projections, enchaînements) selon son niveau.
+- **Arcade** : nouvelle échelle (loup, renard, shin, taureau, akira, cerf, brutus, robot, TITAN-01).
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Phase 6 (histoire, 12 fins, déblocage un par un)** : pas commencée. Le déblocage existe (départ KAIRO et VERA, les 10 autres « ??? »), mais aucune histoire ne débloque encore. `?unlockAll` dans l'URL débloque tout pour tester.
+- **Animation** : toujours procédurale (poses calculées), pas de capture de mouvement. Les transitions entre coups sont lissées mais restent plus raides qu'un jeu commercial. Les sauts, la marche et la course ont un seul cycle pour tous.
+- **Chorégraphies de projection** : approximatives (signes de rotation et arcs réglés à l'œil sur le suplex ; projection de hanche, projection de jambe et projection simple **non vérifiées visuellement**).
+- **Coups non vérifiés visuellement** : crochet ascendant, revers, coup de pied latéral, genou, coup de hache, coups en l'air, coup de pied volant (poses écrites, aucune capture).
+- **Décors** : formes simples (cônes, sphères, boîtes) : lisibles mais basiques. Rue et rooftop n'ont pas d'ambiance sonore ; seul le toit a de la pluie. Décors non vérifiés visuellement : rue, toit, usine, temple, forteresse, tundra, forêt, canyon (seuls automne, neige et désert ont été vus).
+- **Performances** : testées seulement en rendu logiciel (1 à 26 FPS selon la scène) ; aucune mesure sur un vrai GPU.
+- **Pas de son**, pas de manettes, pas de remappage.
+- Pas d'affichage des frames par coup en dehors du panneau de débogage.
+- Les textes des écrans arcade ne passent pas par `i18n/fr.ts`.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : 75 tests (nouveaux : 15 dans `moves.test.ts` : chaque direction + bouton, tous les coups accessibles, même direction = coups distincts, bas + LK ≠ bas + RK en simulation, attaque en courant, enchaînements à vide et selon la direction, 4 projections et leurs dégâts, atterrissage devant ou derrière, projeteur intouchable, tech ; 3 tests de plus par personnage pour les 12 jouables) | **75/75 passent** |
+| `npm run typecheck` | OK |
+| `npm run build` | OK (1,3 Mo) |
+| Navigateur : loup/renard (automne), taureau/cerf (neige), husky/robot (labo), shin/brutus (usine), akira/nyx (désert) | OK (captures) |
+| Navigateur : suplex d'AKIRA sur NYX (prise, élévation, salto, atterrissage derrière, 20 dégâts) | OK (captures à 5 instants) |
+| Navigateur : coup du dragon, coup tournant, charge d'épaule | OK (captures) |
+| Menu : 12 combattants affichés | OK |
+
+Bugs trouvés et corrigés : robot et machines noirs (métal sans reflets : métallicité plafonnée), erreur de forme du torse et du cou (échelles absolues), test d'atterrissage de projection mesuré après que le projeteur se retourne.
+
+### Tests à faire par toi
+
+Ouvre http://localhost:5328/?unlockAll .
+
+1. **Personnages** : lance un combat contre chacun des 12 et regarde leur silhouette. Lesquels te plaisent ? Lesquels sont ratés (proportions, tête, couleurs) ?
+2. **Directions** : essaie dans l'ordre pour un même personnage : A, E, R, F ; puis D (avant) + chaque bouton ; Q (arrière) + chaque bouton ; C (accroupi) + chaque bouton ; C + D + chaque bouton. Chaque combinaison doit lancer un coup différent (affiché dans le panneau de débogage).
+3. **Bas + pied** : C + R (balayette basse, rapide) puis C + F (balayage, plus lent, renverse).
+4. **Projections** : A+E, A+R, E+F, R+F à bout portant. Le suplex (E+F) envoie l'adversaire derrière. Les prises te paraissent-elles « spéciales » comme dans Tekken ?
+5. **Course** : Maj + D, puis un poing (charge) ou un pied (coup volant).
+6. **Enchaînements** : A puis E à la suite ; A puis C + F pendant la récupération.
+7. **Décors** : les 13. Visibilité, ambiance, caméra.
+8. **Équilibrage** : BRUTUS trop lent ? SHIN trop fragile ? AKIRA trop fort sur les projections ?
+9. **FPS** par décor.
+
+### Modifications à me renvoyer
+
+Pour chaque point : ce qui ne va pas et ce que tu veux à la place, avec le nom du personnage ou du décor. Dis-moi aussi si tu veux que je passe à la phase 6 (histoire, 12 fins, déblocage) ou que j'améliore d'abord les animations (marche, course, saut propres à chaque style) et le feeling des coups.

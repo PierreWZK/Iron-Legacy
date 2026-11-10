@@ -1,20 +1,24 @@
 import { Arena as DojoArena } from '../Arena';
-import { LabArena } from './LabArena';
-import { NatureArena } from './NatureArena';
+import { ARENAS, type ArenaId } from './specs';
+import { ThemedArena } from './ThemedArena';
 
-export type ArenaId = 'dojo' | 'forest' | 'autumn' | 'canyon' | 'snow' | 'tundra' | 'lab';
+export type { ArenaId } from './specs';
 
 /** Décor d'origine de chaque personnage (on combat dans le décor de l'adversaire). */
 export const ARENA_OF: Record<string, ArenaId> = {
   kairo: 'dojo',
-  vera: 'dojo',
+  vera: 'street',
   wolf: 'forest',
   fox: 'autumn',
   bull: 'canyon',
   stag: 'snow',
   husky: 'tundra',
   robot: 'lab',
-  titan: 'lab',
+  shin: 'rooftop',
+  brutus: 'factory',
+  akira: 'temple',
+  nyx: 'desert',
+  titan: 'fortress',
 };
 
 export function arenaFor(characterId: string): ArenaId {
@@ -22,12 +26,6 @@ export function arenaFor(characterId: string): ArenaId {
 }
 
 export function ArenaScene({ id }: { id: ArenaId }) {
-  switch (id) {
-    case 'lab':
-      return <LabArena />;
-    case 'dojo':
-      return <DojoArena />;
-    default:
-      return <NatureArena theme={id} />;
-  }
+  if (id === 'dojo') return <DojoArena />;
+  return <ThemedArena id={id} spec={ARENAS[id]} />;
 }

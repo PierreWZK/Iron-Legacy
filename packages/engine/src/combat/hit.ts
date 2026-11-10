@@ -1,5 +1,5 @@
 import { Btn, has } from '../input';
-import type { MoveDef } from '../characters';
+import { getMove, type MoveDef } from '../characters';
 import {
   CROUCH_HURT_TOP, DODGE_INVULN, HEIGHT_Y, HITBOX_HALF, HURT_RADIUS, STAND_HURT_TOP,
 } from '../constants';
@@ -22,6 +22,9 @@ export function canBeHit(d: Fighter): boolean {
       return false;
     case 'dodge':
       return d.moveFrame > DODGE_INVULN;
+    case 'attack':
+      // Pendant la séquence d'une projection réussie, le projeteur est intouchable.
+      return !(d.move !== null && d.moveHit && getMove(d.characterId, d.move).throw === true);
     default:
       return true;
   }

@@ -48,9 +48,10 @@ export interface Fighter {
   /** Entrée du tick précédent et entrée courante (bits de Btn). */
   prevInput: InputFrame;
   input: InputFrame;
-  /** Derniers ticks où LP / RP ont été pressés (détection de projection). */
-  lastLP: number;
-  lastRP: number;
+  /** Derniers ticks où chaque bouton a été pressé (détection des projections à deux boutons). */
+  lastPress: { lp: number; rp: number; lk: number; rk: number };
+  /** Identifiant du combattant qui m'a projeté (séquence de projection en cours), sinon null. */
+  thrownBy: number | null;
   crouched: boolean;
   lastHitBy: number | null;
 }
@@ -65,6 +66,8 @@ export interface GameEvent {
   damage?: number;
   counter?: boolean;
   combo?: number;
+  /** Coup à l'origine de l'événement (pour les effets et les sons). */
+  move?: string;
 }
 
 export interface MatchState {
@@ -121,8 +124,8 @@ function makeFighter(id: number, team: number, characterId: string): Fighter {
     comboTimer: 0,
     prevInput: 0,
     input: 0,
-    lastLP: -999,
-    lastRP: -999,
+    lastPress: { lp: -999, rp: -999, lk: -999, rk: -999 },
+    thrownBy: null,
     crouched: false,
     lastHitBy: null,
   };
@@ -151,6 +154,7 @@ export function beginRound(w: World, intro: boolean, distance = START_DISTANCE):
     f.combo = 0;
     f.comboTimer = 0;
     f.crouched = false;
+    f.thrownBy = null;
     endMove(f);
   }
   w.hitstop = 0;
