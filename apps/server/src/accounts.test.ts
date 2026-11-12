@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from 'colyseus.js';
 import { AccountError, AccountStore, SAVE_KEYS } from './accounts';
 import { createGameServer } from './app';
+import { allowAuthAttempt } from './api';
 
 const PORT = 2596;
 const BASE = `http://localhost:${PORT}`;
@@ -117,4 +118,14 @@ describe('comptes — API HTTP et salon de duel', () => {
     expect(rows.rows.find((r) => r.name === 'Hote1')).toEqual({ name: 'Hote1', wins: 0, games: 1 });
     guest.leave(true);
   }, 15000);
+});
+
+describe('comptes — limitation des tentatives', () => {
+  it("vingt tentatives par adresse, puis refus jusqu'à la fin de la fenêtre", () => {
+    const t0 = 1_000_000;
+    for (let i = 0; i < 20; i++) expect(allowAuthAttempt('10.0.0.1', t0)).toBe(true);
+    expect(allowAuthAttempt('10.0.0.1', t0)).toBe(false);
+    expect(allowAuthAttempt('10.0.0.2', t0)).toBe(true);
+    expect(allowAuthAttempt('10.0.0.1', t0 + 10 * 60 * 1000)).toBe(true);
+  });
 });

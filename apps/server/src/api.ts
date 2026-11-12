@@ -2,6 +2,26 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { AccountError, accountStore, type AccountStore } from './accounts';
 
 const MAX_BODY = 64 * 1024;
+/** Tentatives de connexion/inscription par adresse IP : 20 par 10 minutes (mémoire du processus). */
+const AUTH_LIMIT = 20;
+const AUTH_WINDOW_MS = 10 * 60 * 1000;
+const attempts = new Map<string, { count: number; resetAt: number }>();
+
+/** Vrai si cette adresse peut encore tenter une connexion. Compte la tentative. */
+export function allowAuthAttempt(ip: string, now = Date.now()): boolean {
+  const e = attempts.get(ip);
+  if (!e || now >= e.resetAt) {
+    attempts.set(ip, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+    return true;
+  }
+  e.count++;
+  return e.count <= AUTH_LIMIT;
+}
+
+/** Réservé aux tests : remet le compteur à zéro. */
+export function resetAuthAttempts(): void {
+  attempts.clear();
+}
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +56,9 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, store:
     return send(res, 200, { rows: store.ranking(Number(url.searchParams.get('limit') ?? 20)) });
   }
   if (method === 'POST' && (path === '/api/register' || path === '/api/login')) {
+    if (!allowAuthAttempt(req.socket.remoteAddress ?? 'inconnu')) {
+      return send(res, 429, { error: 'Trop de tentatives. Réessaie dans quelques minutes.' });
+    }
     const body = await readJson(req);
     const name = typeof body['name'] === 'string' ? body['name'] : '';
     const password = typeof body['password'] === 'string' ? body['password'] : '';

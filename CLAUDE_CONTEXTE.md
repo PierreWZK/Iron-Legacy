@@ -780,3 +780,54 @@ Pour chaque point : le scénario (qui était dans quelle équipe), ce qui ne s'a
 ### Modifications à me renvoyer
 
 Pour chaque point : l'écran, ce qui ne se sauvegarde pas ou ne se recharge pas, et le message d'erreur exact s'il y en a un.
+
+---
+
+## 20. Session 13 : phase 12 (optimisation, durcissement, préparation du déploiement)
+
+### Ce qui est fait
+
+- **Bundle client** : découpage par dépendance (`react`, `three`, `network`, `vendor`) dans `apps/client/vite.config.ts`. Scène 3D chargée à la demande (`React.lazy` dans `App.tsx`) : three.js n'est plus téléchargé pour le menu.
+  - Avant : un seul chunk de 1 405 ko (395 ko gzip).
+  - Après : menu = index 100 ko + react 219 ko + network 124 ko + vendor (petits chunks). three.js (918 ko, 243 ko gzip) seulement au premier combat.
+- **Limite de tentatives de connexion** (`apps/server/src/api.ts`) : 20 tentatives par adresse IP et par 10 minutes, puis HTTP 429. Mémoire du processus (perdue au redémarrage ; suffit pour un seul serveur, pas pour plusieurs instances).
+- **Dockerfile serveur** (`apps/server/Dockerfile`) et `.dockerignore` racine : base Node 22 alpine, `IRON_DB=/data/iron.sqlite` (volume `/data`), port 2567. **Non testé** : Docker n'est pas installé sur la machine.
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Pas de déploiement** : ni dépôt GitHub créé, ni rien poussé, ni Coolify configuré. Ces actions sont visibles de l'extérieur et demandent ton accord (voir plus bas).
+- **Pas de Postgres** : toujours SQLite (écart noté en phase 11). Migration à faire avant la mise en ligne.
+- **Dockerfile non vérifié** : `npm ci --workspace ...` et le lancement `tsx` n'ont pas été exécutés dans une image.
+- **Pas de HTTPS ni de TLS** : le client doit parler à un serveur `wss://` / `https://` en ligne ; à configurer au niveau Coolify.
+- **CORS ouvert (`*`)** : à restreindre à l'origine du client en production.
+- **Chunk `network` chargé au menu** (colyseus.js) : pourrait être différé, gain faible.
+- **Pas de mesure de FPS sur vrai GPU** : le navigateur de test est logiciel.
+- **Pas de tests de charge** (nombre de salons simultanés).
+- **Tests de sécurité** : pas d'audit externe.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| Moteur : 126 tests | **Tout passe** |
+| Serveur : 11 tests, dont 1 nouveau (limite de tentatives par IP) | **Tout passe** |
+| `npm run typecheck` | OK (0 erreur) |
+| `npm run build` | OK |
+| Navigateur : menu affiché, COMBATTRE lance la scène (canvas et HUD présents) après chargement différé | OK |
+
+### Avant mise en ligne (à décider avec toi)
+
+1. Dépôt GitHub : créer le repo public, pousser `master` (branche principale) et la branche de travail (tu pousses toi-même selon ta consigne initiale).
+2. Coolify : serveur Node pour `apps/server` (volume `/data`, variables `PORT`, `IRON_DB`), statique pour `apps/client` (variable `VITE_SERVER_URL` à définir au build, en `wss://`).
+3. Base : migrer `node:sqlite` vers Postgres (Docker Compose prévu au plan).
+4. CORS : restreindre à l'URL du client.
+5. Tester l'image Docker sur une machine avec Docker.
+
+### Tests à faire par toi
+
+1. Ouvre le client et lance un combat : chargement doit sembler plus rapide qu'avant (premier affichage du menu).
+2. Si tu as Docker : `docker build -f apps/server/Dockerfile .` depuis la racine, puis `docker run -p 2567:2567 -v iron-data:/data <image>`. Dis-moi l'erreur exacte s'il y en a une.
+
+### Modifications à me renvoyer
+
+Le message d'erreur exact du build Docker, et ce que tu veux décider pour le déploiement (dépôt, Coolify, Postgres).
