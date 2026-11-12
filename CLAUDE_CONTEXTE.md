@@ -646,7 +646,7 @@ Pour chaque point : ce qui saccade ou ne marche pas, le ping mesuré, et le scé
 
 | Test | Résultat |
 |---|---|
-| `npm test` : moteur 119 tests (dont 7 FFA, 1 netcode à 4) ; serveur 2 tests (duel à 2 clients, salon à 4 avec 2 humains + 2 bots) | **Tout passe** |
+| `npm test` : moteur 118 tests (dont 7 FFA) ; serveur 2 tests (duel à 2 clients, salon à 4 avec 2 humains + 2 bots) | **Tout passe** |
 | `npm run typecheck` (engine, client, server) | OK |
 | `npm run build` | OK |
 | Navigateur : salon à 4 (code F7RPD), 3 bots + 1 humain, prêts, lancement, combat jusqu'à `over` (tick 2100), classement affiché (renard vainqueur, humain 2e), console sans erreur | OK |
