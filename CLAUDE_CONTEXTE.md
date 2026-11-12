@@ -565,3 +565,62 @@ Ouvre http://localhost:5328/?unlockAll (le mode robots est jouable même sans d�
 ### Modifications à me renvoyer
 
 Pour chaque point : le robot, la vague ou le défi concerné, et le comportement ou la valeur à changer.
+
+---
+
+## 16. Session 9 : phase 8 (multijoueur en ligne à deux)
+
+Demande : « Continue » (suite du plan : phase 8, duel en ligne). Décision : serveur Colyseus lancé en local (pas de base de données, pas de Docker pour cette phase ; déploiement Coolify prévu en phase 12).
+
+### Ce qui est fait
+
+- **Netcode rollback** (`packages/engine/src/netcode.ts`) : le joueur local voit son action tout de suite, l'entrée distante est prédite (dernière confirmée), et une confirmation du serveur qui diffère de la prédiction déclenche un retour arrière et un rejeu. Fenêtre d'historique de 600 ticks. Empreintes d'état (`worldHash`) vérifiées périodiquement (toutes les 30 frames) ; une divergence déclenche une demande de resynchronisation au serveur.
+- **Serveur autoritaire** (`apps/server`, Colyseus 0.16) : salon par code à 5 caractères, lobby (pseudo, personnage, décor choisi par l'hôte, prêt/pas prêt), lancement par l'hôte quand les deux sont prêts, simulation serveur à 60 Hz, diffusion des entrées utilisées et des empreintes, revanche à deux, forfait et reconnexion (fenêtre de 30 s pendant le combat).
+- **Protocole partagé** (`packages/engine/src/protocol.ts`) : messages client/serveur typés, validation côté serveur (personnage, décor, entrées invalides ignorées, salon plein refusé).
+- **Client** : écrans EN LIGNE (créer, rejoindre par code, salon, résultat, revanche), ping affiché en HUD (mesuré chaque seconde), compteur de divergences. Le combat réutilise la scène 3D ; le décor est celui choisi dans le lobby.
+- **Limite d'avance** : le client n'avance pas de plus de 30 ticks au-delà du serveur confirmé (évite les corrections massives).
+- **Tests** : `netcode.test.ts` (5 tests : confirmations en retard donnent un état final identique à la simulation directe, avec corrections réelles ; resynchronisation ; empreinte stable) ; `apps/server/src/duel.test.ts` (deux vrais clients Colyseus : lobby, prêts, combat de 240 frames, empreintes vérifiées des deux côtés, zéro divergence, zéro erreur).
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Pas de base de données ni de comptes** : pseudo libre, aucune authentification. Triche possible sur le client (le serveur valide les entrées mais ne garde pas de compte).
+- **Classement en ligne** : non fait (phase 11).
+- **Reconnexion** : codée (fenêtre de 30 s) mais **non testée** en conditions réelles.
+- **Revanche et fin de combat côté serveur** : le message `result` est émis, mais le test d'intégration ne joue pas un combat jusqu'à la fin (un combat dure 99 s). Testé seulement par la logique et la lecture du code.
+- **Dans le navigateur de test**, le client tourne bien plus lentement que le serveur (rendu logiciel, onglet non focalisé). Les entrées des joueurs arrivent donc trop tard et le serveur les remplace par la dernière connue (comportement autoritaire voulu) : **le test navigateur à deux onglets a validé le lobby, le lancement, la diffusion des ticks et des empreintes (zéro désync), mais pas le ressenti d'une partie réelle.**
+- **Latence** : aucun test avec latence artificielle. La limite d'avance (30 ticks) est un réglage à vérifier avec deux machines réelles.
+- **Pas de synchronisation d'horloge** : le client suppose que son tick 0 correspond au début serveur ; une dérive lente est absorbée par la limite d'avance, pas corrigée.
+- **Pas de 4 joueurs** (phase 9), pas de 2v2 ni de chacun pour soi (phase 10).
+- Le serveur écoute en `ws://localhost:2567` ; le client lit `VITE_SERVER_URL` (non défini = localhost).
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` (racine) : moteur 111 tests dont 5 netcode, serveur 1 test d'intégration à deux clients | **Tout passe** |
+| `npm run typecheck` (engine, client, server) | OK |
+| `npm run build` | OK |
+| Navigateur, deux onglets : création d'un salon (code GMN6F), invité qui rejoint, choix de personnage, prêts, lancement, combat en cours des deux côtés, ping 1 ms, désync 0 | OK |
+
+Bugs trouvés et corrigés pendant les tests :
+- Un client en avance sur le serveur ratait les empreintes trop anciennes → historique porté à 600 ticks et vérification reportée jusqu'au tick atteint.
+- La vérification ne voyait pas l'état du tick courant (pas encore enregistré) → utilise maintenant `stateAt`.
+- Une resynchronisation perdait les ticks déjà joués → rejoue depuis l'état serveur.
+- Le ping s'affichait selon le mode du menu et non celui du combat → corrigé.
+
+### Tests à faire par toi
+
+Deux machines, même réseau (ou une machine et un ami) :
+
+1. Lance le serveur : `npm run server` à la racine du projet (port 2567). Ouvre le pare-feu si besoin.
+2. Sur l'hôte : `npm run dev`, ouvre http://localhost:5328, EN LIGNE → CRÉER UN SALON, note le code.
+3. Sur l'invité : même adresse côté client (mets l'adresse du serveur dans `VITE_SERVER_URL` au lancement du client, ex. `VITE_SERVER_URL=ws://IP:2567 npm run dev`), EN LIGNE → code → REJOINDRE.
+4. Choisis chacun un personnage, PRÊT, l'hôte lance le combat.
+5. **Ressenti** : les coups sont-ils réactifs pour le joueur local ? Y a-t-il des à-coups (téléportations, coups qui disparaissent) ?
+6. **Divergence** : le compteur « désync » du HUD doit rester à 0.
+7. **Fin de combat** : laisse un combat aller jusqu'au bout. L'écran RÉSULTAT doit apparaître pour les deux, avec le vote de revanche.
+8. **Forfait** : ferme un onglet en plein combat, puis reviens (reconnexion dans les 30 s).
+
+### Modifications à me renvoyer
+
+Pour chaque point : ce qui saccade ou ne marche pas, le ping mesuré, et le scénario (qui a fait quoi, à quel moment).

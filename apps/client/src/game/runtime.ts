@@ -1,8 +1,10 @@
-import { aiInput, Btn, cloneWorld, createDuelWorld, DT, stepWorld, TICK_RATE, type GameEvent, type World } from '@iron/engine';
+import {
+  aiInput, Btn, cloneWorld, createDuelWorld, DT, MAX_AHEAD, Rollback, stepWorld, TICK_RATE, type GameEvent, type World,
+} from '@iron/engine';
 import type { Axis, KeyboardInput } from './input/keyboard';
 
 export type DummyMode = 'idle' | 'block' | 'attack' | 'patrol';
-export type Mode = 'training' | 'ai';
+export type Mode = 'training' | 'ai' | 'online';
 
 /** Statistiques d'un combat, lues par les défis du mode robots. */
 export interface MatchStats {
@@ -26,6 +28,8 @@ export interface MatchConfig {
   /** Vie max et vie de départ, joueur 1 puis joueur 2 (mode robots). */
   maxHealth?: [number, number];
   health?: [number, number];
+  /** Décor forcé (mode en ligne) ; sinon celui du personnage adverse. */
+  arena?: string;
 }
 
 export const DUMMY_MODES: readonly DummyMode[] = ['idle', 'block', 'attack', 'patrol'];
@@ -75,6 +79,12 @@ export class Runtime {
   stats: MatchStats = emptyStats();
   private lastHp = 100;
   private acc = 0;
+  /** Netcode en ligne (null hors ligne). */
+  online: Rollback | null = null;
+  /** Envoie l'entrée locale au serveur pour le tick donné. */
+  private sendInput: ((t: number, bits: number) => void) | null = null;
+  /** Tick le plus avancé confirmé par le serveur (+1). */
+  private serverTick = 0;
   private queue: GameEvent[] = [];
 
   start(cfg: MatchConfig): void {
@@ -97,7 +107,89 @@ export class Runtime {
     this.config.dummy = DUMMY_MODES[(i + 1) % DUMMY_MODES.length]!;
   }
 
+  /** Démarre un duel en ligne : le monde est simulé localement avec rollback, l'autorité est le serveur. */
+  startOnline(opts: { slot: number; heroes: [string, string]; arena: string; sendInput: (t: number, bits: number) => void }): void {
+    this.config = { p1: opts.heroes[0], p2: opts.heroes[1], mode: 'online', level: 0, dummy: 'idle', arena: opts.arena };
+    const world = createDuelWorld({ p1: opts.heroes[0], p2: opts.heroes[1], intro: true });
+    this.online = new Rollback(opts.slot, world);
+    this.sendInput = opts.sendInput;
+    this.serverTick = 0;
+    this.world = this.online.world;
+    this.prev = cloneWorld(this.world);
+    this.acc = 0;
+    this.alpha = 0;
+    this.shake = 0;
+    this.queue = [];
+    this.stats = emptyStats();
+    this.lastHp = this.world.fighters[0]!.health;
+    this.playerMin = this.world.fighters[0]!.maxHealth;
+  }
+
+  /** Entrées réelles du tick t, reçues du serveur. */
+  onlineTick(t: number, inputs: [number, number]): void {
+    if (!this.online) return;
+    this.serverTick = Math.max(this.serverTick, t + 1);
+    this.online.confirm(t, inputs);
+    this.world = this.online.world;
+  }
+
+  /** État de référence reçu du serveur (après une divergence). */
+  onlineSnapshot(world: World): void {
+    if (!this.online) return;
+    this.online.resync(world);
+    this.world = this.online.world;
+  }
+
+  /** Vérifie l'empreinte serveur du tick t (reportée si le tick n'est pas encore atteint). */
+  onlineVerify(t: number, h: string): void {
+    this.online?.verify(t, h);
+  }
+
+  /** Divergences détectées depuis le dernier appel ; vidées au passage. */
+  takeDivergences(): number {
+    const n = this.online?.divergences.length ?? 0;
+    if (this.online) this.online.divergences = [];
+    return n;
+  }
+
+  private advanceOnline(delta: number, kb: KeyboardInput): void {
+    const rb = this.online!;
+    this.acc += Math.min(delta, 0.25);
+    let steps = 0;
+    while (this.acc >= DT && steps < MAX_STEPS_PER_FRAME) {
+      // Trop d'avance sur le serveur : on attend ses confirmations (évite des corrections massives).
+      if (rb.tick - this.serverTick > MAX_AHEAD) {
+        this.acc = 0;
+        break;
+      }
+      const bits = kb.sample(rb.world.fighters[rb.localIndex]!, fightAxis(rb.world));
+      this.sendInput?.(rb.tick, bits);
+      this.prev = cloneWorld(rb.world);
+      rb.step(bits);
+      this.world = rb.world;
+      const hp = rb.world.fighters[0]!.health;
+      if (hp < this.lastHp) this.stats.damageTaken += this.lastHp - hp;
+      this.lastHp = hp;
+      this.playerMin = Math.min(this.playerMin, hp);
+      this.stats.secondsLeft = rb.world.match.clock / TICK_RATE;
+      this.stats.comboMax = Math.max(this.stats.comboMax, rb.world.fighters[0]!.combo);
+      for (const e of rb.world.events) {
+        this.queue.push(e);
+        if (e.kind === 'hit' || e.kind === 'throw') this.shake = Math.max(this.shake, Math.min(1, (e.damage ?? 8) / 12));
+      }
+      this.acc -= DT;
+      steps++;
+    }
+    if (steps === MAX_STEPS_PER_FRAME) this.acc = 0;
+    this.alpha = this.acc / DT;
+    this.shake *= Math.exp(-delta * 9);
+  }
+
   advance(delta: number, kb: KeyboardInput): void {
+    if (this.online) {
+      this.advanceOnline(delta, kb);
+      return;
+    }
     const w = this.world;
     if (!w) return;
     if (this.config.mode === 'training') {

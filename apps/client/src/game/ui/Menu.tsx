@@ -6,6 +6,7 @@ import { startFight, useApp } from '../store';
 import { arcadeOpen } from '../arcade/session';
 import { storyOpen } from '../story/session';
 import { robotsOpen } from '../robots/session';
+import { onlineOpen } from '../online/session';
 import { useProgress } from '../progress';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -125,6 +126,13 @@ export function Menu() {
           className="ml-4 border border-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-iron-amber hover:bg-iron-amber/10"
         >
           ROBOTS
+        </button>
+        <button
+          type="button"
+          onClick={onlineOpen}
+          className="ml-4 border border-iron-cyan px-10 py-4 text-lg tracking-[0.3em] text-iron-cyan hover:bg-iron-cyan/10"
+        >
+          EN LIGNE
         </button>
       </div>
     </main>

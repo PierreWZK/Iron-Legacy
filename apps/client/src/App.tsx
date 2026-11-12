@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
+import { runtime } from './game/runtime';
 import { arcadeQuit, useArcade } from './game/arcade/session';
 import { storyQuit, useStory } from './game/story/session';
 import { StoryScreen } from './game/ui/StoryScreens';
 import { robotsQuit, useRobots } from './game/robots/session';
+import { onlineLeave } from './game/online/session';
+import { OnlineScreen } from './game/ui/OnlineScreens';
 import { RobotScreen } from './game/ui/RobotScreens';
 import { Scene } from './game/Scene';
 import { ArcadeScreen } from './game/ui/ArcadeScreens';
@@ -22,7 +25,10 @@ export function App() {
         if (useArcade.getState().active) arcadeQuit();
         else if (useStory.getState().active) storyQuit();
         else if (useRobots.getState().active) robotsQuit();
+        else if (runtime.online) onlineLeave();
         else backToMenu();
+      } else if (current === 'online') {
+        onlineLeave();
       } else if (current === 'robots') {
         backToMenu();
       } else if (current === 'story') {
@@ -39,6 +45,7 @@ export function App() {
   if (screen === 'arcade') return <div className="h-full w-full bg-iron-bg"><ArcadeScreen /></div>;
   if (screen === 'story') return <div className="h-full w-full bg-iron-bg"><StoryScreen /></div>;
   if (screen === 'robots') return <div className="h-full w-full bg-iron-bg"><RobotScreen /></div>;
+  if (screen === 'online') return <div className="h-full w-full bg-iron-bg"><OnlineScreen /></div>;
   return (
     <div className="relative h-full w-full">
       <Scene key={runId} />

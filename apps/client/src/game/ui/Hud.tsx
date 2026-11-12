@@ -4,6 +4,7 @@ import { backToMenu, startFight, useApp, useHud } from '../store';
 import { useArcade } from '../arcade/session';
 import { useStory } from '../story/session';
 import { useRobots } from '../robots/session';
+import { useOnline } from '../online/session';
 import { ARCADE_STAGES, getChallenge, getCharacter, storyOpponents, waveSetup } from '@iron/engine';
 
 const useArenaRobot = (wave: number): string => waveSetup(wave).robot;
@@ -58,7 +59,7 @@ function Overlay() {
     const text = h.roundWinner === null ? (h.clock <= 0 ? t.hud.time : t.hud.draw) : t.hud.ko;
     return <Centered className="text-6xl tracking-widest text-iron-amber">{text}</Centered>;
   }
-  if (h.phase === 'over' && (useArcade.getState().active || useStory.getState().active || useRobots.getState().active)) {
+  if (h.phase === 'over' && (useArcade.getState().active || useStory.getState().active || useRobots.getState().active || useOnline.getState().screen === 'match')) {
     return (
       <Centered className={`text-6xl tracking-widest ${h.matchWinner === 0 ? 'text-iron-cyan' : 'text-red-400'}`}>
         {h.matchWinner === 0 ? t.hud.victory : t.hud.defeat}
@@ -167,6 +168,7 @@ export function Hud() {
 
       <div className="absolute right-4 top-28 w-56 bg-black/55 p-3 text-xs tabular-nums text-white/80">
         <div className="mb-1 tracking-widest text-iron-amber">{fr.subtitle}</div>
+        {h.mode === 'online' && <div className="text-iron-cyan">EN LIGNE · ping {useOnline.getState().ping ?? '—'} ms · désync {useOnline.getState().desyncs}</div>}
         <div>{fr.debug.fps} : {h.fps}</div>
         <div>{fr.debug.tick} : {h.tick}</div>
         <div>{fr.debug.distance} : {h.distance.toFixed(2)} m</div>

@@ -9,3 +9,6 @@ export * from './combat/intent';
 export * from './story';
 export * from './survival';
 export * from './challenges';
+export * from './netcode';
+export * from './arenas';
+export * from './protocol';

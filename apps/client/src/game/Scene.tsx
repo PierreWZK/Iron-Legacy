@@ -12,6 +12,8 @@ import { useHud } from './store';
 import { arcadeFightOver } from './arcade/session';
 import { storyFightOver } from './story/session';
 import { robotFightOver } from './robots/session';
+import { onlineFightOver } from './online/session';
+import type { ArenaId } from './render/arenas';
 
 /** Pilote la sim à pas fixe depuis la boucle de rendu et pousse un résumé vers l'interface (10 Hz). */
 function Simulation({ kb }: { kb: KeyboardInput }) {
@@ -28,6 +30,7 @@ function Simulation({ kb }: { kb: KeyboardInput }) {
         arcadeFightOver();
         storyFightOver();
         robotFightOver();
+        onlineFightOver();
       }, 2500);
     }
     acc.since += delta;
@@ -83,7 +86,7 @@ export function Scene() {
     >
       <Simulation kb={kb} />
       <FightCamera />
-      <ArenaScene id={arenaFor(p2)} />
+      <ArenaScene id={(runtime.config.arena as ArenaId | undefined) ?? arenaFor(p2)} />
       <FighterView index={0} characterId={p1} />
       <FighterView index={1} characterId={p2} />
       <Effects />
