@@ -6,6 +6,7 @@ import { StoryScreen } from './game/ui/StoryScreens';
 import { robotsQuit, useRobots } from './game/robots/session';
 import { onlineLeave } from './game/online/session';
 import { OnlineScreen } from './game/ui/OnlineScreens';
+import { AccountScreen } from './game/ui/AccountScreens';
 import { RobotScreen } from './game/ui/RobotScreens';
 import { Scene } from './game/Scene';
 import { ArcadeScreen } from './game/ui/ArcadeScreens';
@@ -27,6 +28,8 @@ export function App() {
         else if (useRobots.getState().active) robotsQuit();
         else if (runtime.online) onlineLeave();
         else backToMenu();
+      } else if (current === 'account') {
+        backToMenu();
       } else if (current === 'online') {
         onlineLeave();
       } else if (current === 'robots') {
@@ -45,6 +48,7 @@ export function App() {
   if (screen === 'arcade') return <div className="h-full w-full bg-iron-bg"><ArcadeScreen /></div>;
   if (screen === 'story') return <div className="h-full w-full bg-iron-bg"><StoryScreen /></div>;
   if (screen === 'robots') return <div className="h-full w-full bg-iron-bg"><RobotScreen /></div>;
+  if (screen === 'account') return <div className="h-full w-full bg-iron-bg"><AccountScreen /></div>;
   if (screen === 'online') return <div className="h-full w-full bg-iron-bg"><OnlineScreen /></div>;
   return (
     <div className="relative h-full w-full">

@@ -52,7 +52,7 @@ function attach(room: Room, peer: Peer): void {
 describe('duel en ligne — serveur autoritaire et netcode', () => {
   let stop: (() => Promise<void>) | null = null;
   beforeAll(async () => {
-    const { gameServer, httpServer } = createGameServer();
+    const { gameServer, httpServer } = createGameServer({ dbPath: ':memory:' });
     await gameServer.listen(PORT);
     stop = async () => {
       await gameServer.gracefullyShutdown(false);

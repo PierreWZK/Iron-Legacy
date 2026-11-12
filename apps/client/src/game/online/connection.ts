@@ -1,5 +1,6 @@
 import { Client, type Room } from 'colyseus.js';
 import { FOUR_ROOM_NAME, ROOM_NAME, TEAM_ROOM_NAME, type ClientMessage, type ServerMessage } from '@iron/engine';
+import { savedToken } from '../account/token';
 
 /** Adresse du serveur de combat (variable d'environnement VITE_SERVER_URL, sinon localhost). */
 export const SERVER_URL: string = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? 'ws://localhost:2567';
@@ -26,8 +27,8 @@ export async function openRoom(
   client ??= new Client(SERVER_URL);
   const roomName = ROOM_BY_KIND[kind];
   room = mode === 'create'
-    ? await client.create(roomName, { code, name })
-    : await client.join(roomName, { code, name });
+    ? await client.create(roomName, { code, name, token: savedToken() })
+    : await client.join(roomName, { code, name, token: savedToken() });
   for (const type of MESSAGE_TYPES) {
     room.onMessage(type, (m: ServerMessage) => onMessage(m));
   }

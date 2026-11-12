@@ -35,7 +35,7 @@ function attach(room: Room, peer: Peer): void {
 describe('2v2 — deux humains et deux bots', () => {
   let stop: (() => Promise<void>) | null = null;
   beforeAll(async () => {
-    const { gameServer, httpServer } = createGameServer();
+    const { gameServer, httpServer } = createGameServer({ dbPath: ':memory:' });
     await gameServer.listen(PORT);
     stop = async () => {
       await gameServer.gracefullyShutdown(false);

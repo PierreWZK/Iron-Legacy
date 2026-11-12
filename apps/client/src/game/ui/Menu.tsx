@@ -134,6 +134,13 @@ export function Menu() {
         >
           EN LIGNE
         </button>
+        <button
+          type="button"
+          onClick={() => useApp.setState({ screen: 'account' })}
+          className="ml-4 border border-white/40 px-10 py-4 text-lg tracking-[0.3em] text-white/80 hover:bg-white/5"
+        >
+          COMPTE
+        </button>
       </div>
     </main>
   );

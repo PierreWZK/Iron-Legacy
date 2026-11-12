@@ -723,3 +723,60 @@ Pour chaque point : ce qui ne marche pas ou saccade, le nombre d'humains, et la 
 ### Modifications à me renvoyer
 
 Pour chaque point : le scénario (qui était dans quelle équipe), ce qui ne s'affiche pas, et la caméra si elle décroche.
+
+---
+
+## 19. Session 12 : phase 11 (comptes, sauvegarde en ligne, classement)
+
+### Écart avec le plan (à valider)
+
+- Le plan prévoyait **Postgres via Docker Compose**. Docker n'est pas installé sur la machine : les comptes sont dans **SQLite** (`node:sqlite`, intégré à Node 22, marqué expérimental, avertissement à l'exécution). Fichier : `apps/server/data/iron.sqlite` (ignoré par git, variable `IRON_DB` pour le changer). Migration vers Postgres à faire avant la mise en ligne (phase 12).
+
+### Ce qui est fait
+
+- **Comptes** (`apps/server/src/accounts.ts`) : inscription (pseudo 3 à 16 caractères `A-Za-z0-9_-`, mot de passe 6 à 128), connexion, jeton de session, déconnexion. Mots de passe hachés avec scrypt + sel aléatoire, comparaison en temps constant. Message identique pour pseudo inconnu et mot de passe faux.
+- **API HTTP** (`apps/server/src/api.ts`) : `POST /api/register`, `POST /api/login`, `POST /api/logout`, `GET /api/me`, `GET|PUT /api/progress`, `GET /api/ranking`. Corps limité à 64 Ko. CORS ouvert (`*`) pour le développement.
+- **Sauvegarde** : quatre clés du stockage local (personnages débloqués, robots, histoire, classement d'arcade). Le serveur ne garde que ces clés, valeurs texte bornées à 20 Ko.
+- **Classement en ligne** : chaque partie terminée en salon (duel, dernier debout, 2v2) compte une victoire ou une défaite pour chaque compte humain lié à sa place. Tri : victoires décroissantes, puis moins de parties. Les bots ne comptent pas.
+- **Client** : écran COMPTE (connexion, inscription, sauvegarde manuelle, déconnexion, classement). Sauvegarde automatique au retour au menu si connecté. À la connexion : la sauvegarde du serveur remplace la locale, puis la page est rechargée. Jeton envoyé à la création et à la jointure d'un salon.
+
+### Bugs trouvés et corrigés
+
+- Le bouton « CRÉER LE COMPTE » ne soumettait rien (`type="button"` sans action) : relié directement à l'action.
+- Les trois anciens tests d'intégration ouvraient le même fichier SQLite en parallèle (« database is locked ») : ils passent en mémoire (`dbPath: ':memory:'`).
+- Un test de classement avait une assertion illisible : réécrite (Yann 1/1 avant Xavier 1/2).
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| Moteur : 126 tests | **Tout passe** |
+| Serveur : 10 tests, dont 4 nouveaux `accounts.test.ts` (inscription, connexion, validations, sauvegarde filtrée, classement, API HTTP et routes protégées, forfait en duel qui compte défaite et victoire) | **Tout passe** |
+| `npm run typecheck`, `npm run build` | OK |
+| Navigateur : inscription « Testeur1 » via l'écran COMPTE, jeton stocké ; sauvegarde (« Sauvegarde envoyée. ») ; déconnexion ; reconnexion via l'API (200) | OK |
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Pas de Postgres** (voir écart ci-dessus).
+- **Pas de limitation des tentatives de connexion** : un attaquant peut essayer des mots de passe sans frein.
+- **Pas de réinitialisation de mot de passe**, pas de changement de pseudo, pas de suppression de compte.
+- **Jetons sans expiration** et stockés en clair dans la base (seul le mot de passe est haché).
+- **Connexion : rechargement complet de la page** (pour que robots, histoire et arcade relisent la sauvegarde). Pas de mise à jour à chaud.
+- **Sauvegarde automatique seulement au retour au menu** : une partie non quittée proprement n'est pas sauvegardée.
+- **Classement : une seule liste**, pas de classement par personnage ni par mode.
+- **Pseudo du salon** : celui saisi à l'écran en ligne, pas celui du compte (les deux peuvent différer).
+- **Écran COMPTE non vérifié visuellement sur mobile.**
+- **Test navigateur de la reconnexion complète** (rechargement après connexion) : non fait ; seule l'API a été appelée.
+- **Classement après une vraie partie en ligne** : vérifié par test serveur (forfait), pas en partie complète à l'écran.
+
+### Tests à faire par toi
+
+1. `npm run server`, puis `npm run dev`, ouvre http://localhost:5328, COMPTE → INSCRIPTION.
+2. Fais quelques vagues robots et débloque un personnage en histoire, puis clique SAUVEGARDER MAINTENANT.
+3. DÉCONNEXION, puis CONNEXION : les personnages débloqués et les records doivent revenir.
+4. Fais une partie en ligne (duel) jusqu'au bout ou quitte en plein combat : le classement doit bouger.
+5. Vérifie l'affichage de l'écran COMPTE sur téléphone (largeur réduite).
+
+### Modifications à me renvoyer
+
+Pour chaque point : l'écran, ce qui ne se sauvegarde pas ou ne se recharge pas, et le message d'erreur exact s'il y en a un.

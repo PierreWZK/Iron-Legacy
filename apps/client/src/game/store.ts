@@ -1,3 +1,4 @@
+import { autoSave } from './account/auth';
 import { create } from 'zustand';
 import type { ActionState, MatchState, MoveId } from '@iron/engine';
 import { runtime, type DummyMode, type MatchConfig } from './runtime';
@@ -59,7 +60,7 @@ export const useHud = create<HudState>(() => ({
   team: false,
 }));
 
-export type Screen = 'menu' | 'fight' | 'arcade' | 'story' | 'robots' | 'online';
+export type Screen = 'menu' | 'fight' | 'arcade' | 'story' | 'robots' | 'online' | 'account';
 
 export interface AppState {
   screen: Screen;
@@ -81,5 +82,6 @@ export function startFight(): void {
 }
 
 export function backToMenu(): void {
+  autoSave();
   useApp.setState({ screen: 'menu' });
 }

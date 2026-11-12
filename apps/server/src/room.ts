@@ -1,4 +1,5 @@
 import { Room, type Client } from 'colyseus';
+import { accountStore } from './accounts';
 import {
   ARENA_IDS, botInput, CHARACTER_IDS, cleanName, createWorld, HASH_EVERY, makeRng, stepWorld, worldHash,
   type LobbyPlayer, type LobbyState, type ServerMessage, type World,
@@ -17,6 +18,8 @@ interface Seat {
   ready: boolean;
   connected: boolean;
   bot: boolean;
+  /** Compte lié à la place (connexion au moment de la jointure), sinon null. */
+  userId: number | null;
 }
 
 /**
@@ -69,7 +72,7 @@ export abstract class FightRoom extends Room {
     this.setSimulationInterval(() => this.update(), TICK_MS);
   }
 
-  override onJoin(client: Client, options: { name?: unknown }): void {
+  override onJoin(client: Client, options: { name?: unknown; token?: unknown }): void {
     const slot = this.seats.findIndex((s) => s === null);
     if (slot < 0) {
       client.send('error', { type: 'error', message: 'Salon plein.' } satisfies ServerMessage);
@@ -78,6 +81,7 @@ export abstract class FightRoom extends Room {
     this.seats[slot] = {
       sid: client.sessionId, name: cleanName(options.name), hero: CHARACTER_IDS[slot % CHARACTER_IDS.length]!,
       ready: false, connected: true, bot: false,
+      userId: accountStore()?.account(typeof options['token'] === 'string' ? options['token'] : '')?.id ?? null,
     };
     this.sendTo(client, { type: 'welcome', slot });
     this.broadcastLobby();
@@ -168,7 +172,7 @@ export abstract class FightRoom extends Room {
       if (slot < 0) return;
       const used = new Set(this.seats.filter((s): s is Seat => s !== null).map((s) => s.hero));
       const hero = CHARACTER_IDS.find((c) => !used.has(c)) ?? CHARACTER_IDS[0]!;
-      this.seats[slot] = { sid: '', name: `Bot ${slot + 1}`, hero, ready: true, connected: true, bot: true };
+      this.seats[slot] = { sid: '', name: `Bot ${slot + 1}`, hero, ready: true, connected: true, bot: true, userId: null };
     } else {
       for (let i = this.seats.length - 1; i > 0; i--) {
         if (this.seats[i]?.bot) {
@@ -263,6 +267,7 @@ export abstract class FightRoom extends Room {
   }
 
   private endMatch(winner: number | null, winnerTeam: number | null = null): void {
+    this.recordStats(winner, winnerTeam);
     this.running = false;
     this.phase = 'result';
     this.winner = winner;
@@ -270,6 +275,17 @@ export abstract class FightRoom extends Room {
     this.placements = this.world?.match.placements ?? [];
     this.broadcast('result', { type: 'result', winner, winnerTeam } satisfies ServerMessage);
     this.broadcastLobby();
+  }
+
+  /** Victoire / défaite pour chaque compte humain de la salle. */
+  private recordStats(winner: number | null, winnerTeam: number | null): void {
+    const store = accountStore();
+    if (!store) return;
+    this.seats.forEach((seat, slot) => {
+      if (!seat || seat.bot || seat.userId === null) return;
+      const won = this.team ? winnerTeam === slot % 2 : winner === slot;
+      store.recordResult(seat.userId, won);
+    });
   }
 
   private slotOf(sid: string): number {
