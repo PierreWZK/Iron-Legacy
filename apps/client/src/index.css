@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Orbitron", "Segoe UI", system-ui, sans-serif;
+  --color-iron-bg: #07090d;
+  --color-iron-amber: #ffb020;
+  --color-iron-cyan: #34e0ff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-iron-bg);
+  color: #e8edf3;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Dégâts flottants (Hud.tsx). */
+@keyframes popup {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, -40px); }
+}
+.popup {
+  animation: popup 0.9s ease-out forwards;
+}

@@ -5,3 +5,8 @@ dist
 !.env.example
 *.log
 .vite
+assets/extracted/
+assets/incoming/*.zip
+
+# Base des comptes (SQLite, locale)
+apps/server/data/
