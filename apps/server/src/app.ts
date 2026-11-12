@@ -1,8 +1,8 @@
 import { createServer, type Server as HttpServer } from 'node:http';
 import { Server } from 'colyseus';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-import { FOUR_ROOM_NAME, ROOM_NAME } from '@iron/engine';
-import { DuelRoom, FourRoom } from './room';
+import { FOUR_ROOM_NAME, ROOM_NAME, TEAM_ROOM_NAME } from '@iron/engine';
+import { DuelRoom, FourRoom, TeamRoom } from './room';
 
 /** Crée le serveur de jeu (HTTP + WebSocket + salon de duel). Ne démarre rien : voir index.ts. */
 export function createGameServer(): { gameServer: Server; httpServer: HttpServer } {
@@ -10,5 +10,6 @@ export function createGameServer(): { gameServer: Server; httpServer: HttpServer
   const gameServer = new Server({ transport: new WebSocketTransport({ server: httpServer }) });
   gameServer.define(ROOM_NAME, DuelRoom).filterBy(['code']);
   gameServer.define(FOUR_ROOM_NAME, FourRoom).filterBy(['code']);
+  gameServer.define(TEAM_ROOM_NAME, TeamRoom).filterBy(['code']);
   return { gameServer, httpServer };
 }

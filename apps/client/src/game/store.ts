@@ -29,6 +29,8 @@ export interface HudState {
   roster: { name: string; hp: number; max: number; alive: boolean }[];
   /** Mode dernier debout. */
   ffa: boolean;
+  /** Mode équipes 2v2. */
+  team: boolean;
 }
 
 export const useHud = create<HudState>(() => ({
@@ -54,6 +56,7 @@ export const useHud = create<HudState>(() => ({
   lastHit: null,
   roster: [],
   ffa: false,
+  team: false,
 }));
 
 export type Screen = 'menu' | 'fight' | 'arcade' | 'story' | 'robots' | 'online';

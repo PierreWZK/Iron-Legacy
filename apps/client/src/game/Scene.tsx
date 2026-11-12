@@ -61,6 +61,7 @@ function Simulation({ kb }: { kb: KeyboardInput }) {
     });
     useHud.setState({
       ffa: w.match.mode === 'ffa',
+      team: w.match.mode === 'team',
       roster: w.fighters.map((f) => ({
         name: getCharacter(f.characterId).name, hp: f.health, max: f.maxHealth, alive: f.health > 0,
       })),

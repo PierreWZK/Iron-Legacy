@@ -7,6 +7,10 @@ export function updateMatch(w: World): void {
     updateFfa(w);
     return;
   }
+  if (w.match.mode === 'team') {
+    updateTeam(w);
+    return;
+  }
   const m = w.match;
   if (m.phase === 'intro') {
     m.timer--;
@@ -113,5 +117,59 @@ function updateFfa(w: World): void {
   winner.action = 'victory';
   winner.stun = 0;
   endMove(winner);
+}
+
+/**
+ * Mode équipes 2v2 : un combattant KO est éliminé ; l'équipe perd quand ses deux combattants sont éliminés.
+ * Fin : une seule équipe debout (elle gagne), ou temps écoulé (vie totale la plus haute gagne ; égalité = pas de gagnant).
+ */
+function updateTeam(w: World): void {
+  const m = w.match;
+  if (m.phase === 'intro') {
+    m.timer--;
+    if (m.timer <= 0) m.phase = 'fight';
+    return;
+  }
+  if (m.phase !== 'fight') return;
+  m.clock--;
+  for (const f of w.fighters) {
+    if (f.health <= 0 && !m.placements.includes(f.id)) {
+      m.placements.push(f.id);
+      endMove(f);
+      f.stun = 999999;
+      f.airStun = false;
+      f.action = 'knockdown';
+      w.events.push({ kind: 'ko', fighter: f.id, x: f.pos.x, y: 0, z: f.pos.z });
+    }
+  }
+  const alive = w.fighters.filter((f) => !m.placements.includes(f.id));
+  const aliveTeams = new Set(alive.map((f) => f.team));
+  if (aliveTeams.size > 1 && m.clock > 0) return;
+
+  let winnerTeam: number | null;
+  if (aliveTeams.size === 1) {
+    winnerTeam = alive[0]!.team;
+  } else if (aliveTeams.size === 0) {
+    // Double KO au même tick : l'équipe du dernier éliminé gagne.
+    winnerTeam = w.fighters.find((f) => f.id === m.placements[m.placements.length - 1])?.team ?? null;
+  } else {
+    const totals = [0, 1].map((t) => alive.filter((f) => f.team === t).reduce((s, f) => s + f.health, 0));
+    winnerTeam = totals[0] === totals[1] ? null : totals[0]! > totals[1]! ? 0 : 1;
+  }
+  // Classement : éliminés dans l'ordre ; les vivants de l'équipe gagnante passent en dernier.
+  const notPlaced = (f: Fighter) => !m.placements.includes(f.id);
+  const rest = w.fighters.filter((f) => notPlaced(f) && f.team !== winnerTeam).map((f) => f.id);
+  const winners = w.fighters.filter((f) => notPlaced(f) && f.team === winnerTeam).sort((a, b) => b.health - a.health || a.id - b.id);
+  m.placements = [...m.placements, ...rest, ...winners.map((f) => f.id)];
+  m.winnerTeam = winnerTeam;
+  m.matchWinner = winners[0]?.id ?? null;
+  m.phase = 'over';
+  for (const f of winners) {
+    if (f.health > 0) {
+      f.action = 'victory';
+      f.stun = 0;
+      endMove(f);
+    }
+  }
 }
 

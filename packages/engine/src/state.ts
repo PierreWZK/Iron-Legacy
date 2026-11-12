@@ -72,9 +72,11 @@ export interface GameEvent {
 
 export interface MatchState {
   /** duel : manches au meilleur des 3. ffa : une seule partie, dernier debout gagne. */
-  mode: 'duel' | 'ffa';
-  /** Mode ffa : ids des combattants dans l'ordre de leur élimination ; le vainqueur est en dernier. */
+  mode: 'duel' | 'ffa' | 'team';
+  /** Mode ffa / team : ids des combattants dans l'ordre de leur élimination ; le vainqueur est en dernier. */
   placements: number[];
+  /** Mode team : équipe gagnante (null si égalité au temps). */
+  winnerTeam: number | null;
   phase: 'intro' | 'fight' | 'ko' | 'over';
   timer: number;
   /** Horloge du round en ticks. */
@@ -112,6 +114,8 @@ export interface WorldOptions {
   intro?: boolean;
   /** Mode dernier debout. */
   ffa?: boolean;
+  /** Mode équipes 2v2 : combattants pairs (0, 2) dans l'équipe 0, impairs (1, 3) dans l'équipe 1. */
+  team?: boolean;
   distance?: number;
   maxHealth?: number[];
   health?: number[];
@@ -197,24 +201,36 @@ export function beginRound(w: World, intro: boolean, distance = START_DISTANCE):
   w.match.clock = ROUND_SECONDS * TICK_RATE;
   w.match.roundWinner = null;
   w.match.placements = [];
+  w.match.winnerTeam = null;
 }
 
 /** Crée un combat à N combattants (duel par défaut, dernier debout en mode ffa). */
 export function createWorld(opts: WorldOptions): World {
   if (opts.heroes.length < 2) throw new Error('Un combat demande au moins deux combattants.');
+  if (opts.team && opts.heroes.length !== 4) throw new Error('Le mode équipes demande exactement quatre combattants.');
   const w: World = {
     tick: 0,
-    fighters: opts.heroes.map((h, i) => makeFighter(i, i, h)),
+    fighters: opts.heroes.map((h, i) => makeFighter(i, opts.team ? i % 2 : i, h)),
     hitstop: 0,
     rng: SEED,
     events: [],
     match: {
-      mode: opts.ffa ? 'ffa' : 'duel',
+      mode: opts.team || opts.ffa ? (opts.team ? 'team' : 'ffa') : 'duel',
       placements: [],
+      winnerTeam: null,
       phase: 'fight', timer: 0, clock: 0, round: 1, wins: [0, 0], roundWinner: null, matchWinner: null,
     },
   };
   beginRound(w, opts.intro ?? false, opts.distance ?? START_DISTANCE);
+  if (opts.team) {
+    // Équipe 0 à gauche, équipe 1 à droite, les deux combattants de chaque équipe côte à côte.
+    for (const f of w.fighters) {
+      const side = f.team === 0 ? -1 : 1;
+      const lane = f.id < 2 ? -0.9 : 0.9;
+      f.pos = { x: side * 2.2, y: 0, z: lane };
+      f.facing = { x: -side, z: 0 };
+    }
+  }
   for (const [i, max] of (opts.maxHealth ?? []).entries()) {
     const f = w.fighters[i]!;
     f.maxHealth = Math.max(1, max);

@@ -127,10 +127,10 @@ export class Runtime {
   }
 
   /** Démarre un duel en ligne : le monde est simulé localement avec rollback, l'autorité est le serveur. */
-  startOnline(opts: { slot: number; heroes: string[]; arena: string; ffa: boolean; sendInput: (t: number, bits: number) => void }): void {
+  startOnline(opts: { slot: number; heroes: string[]; arena: string; ffa: boolean; team: boolean; sendInput: (t: number, bits: number) => void }): void {
     this.heroes = [...opts.heroes];
     this.config = { p1: opts.heroes[0]!, p2: opts.heroes[1]!, mode: 'online', level: 0, dummy: 'idle', arena: opts.arena };
-    const world = createWorld({ heroes: opts.heroes, intro: true, ffa: opts.ffa });
+    const world = createWorld({ heroes: opts.heroes, intro: true, ffa: opts.ffa, team: opts.team });
     this.online = new Rollback(opts.slot, world);
     this.sendInput = opts.sendInput;
     this.serverTick = 0;

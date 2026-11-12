@@ -1,10 +1,13 @@
 import { ARENA_IDS, CHARACTER_IDS, getCharacter } from '@iron/engine';
 import { useState, type ReactNode } from 'react';
+import type { RoomKind } from '../online/connection';
 import { useProgress } from '../progress';
 import {
   onlineBot, onlineHost, onlineJoin, onlineLeave, onlineRematch, onlineSetArena, onlineSetHero, onlineSetName,
   onlineSetReady, onlineStart, useOnline,
 } from '../online/session';
+
+const KIND_LABEL: Record<RoomKind, string> = { duel: 'DUEL (2)', four: 'DERNIER DEBOUT (4)', team: '2 CONTRE 2' };
 
 function Button({ onClick, children, primary = false, disabled = false }: {
   onClick: () => void; children: ReactNode; primary?: boolean; disabled?: boolean;
@@ -35,10 +38,11 @@ function Frame({ title, children }: { title: string; children: ReactNode }) {
 function HomeView() {
   const st = useOnline();
   const [code, setCode] = useState('');
+  const [kind, setKind] = useState<RoomKind>('duel');
   return (
     <Frame title="EN LIGNE">
       <p className="max-w-2xl text-sm text-white/70">
-        Crée un salon et envoie le code à tes adversaires, ou rejoins un salon avec son code. Duel à deux, ou dernier debout à quatre (les places libres peuvent être comblées par des bots).
+        Crée un salon et envoie le code à tes adversaires, ou rejoins un salon avec son code. Duel à deux, dernier debout à quatre, ou 2 contre 2 (les places libres peuvent être comblées par des bots).
       </p>
       <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
         PSEUDO
@@ -50,8 +54,9 @@ function HomeView() {
         />
       </label>
       <div className="flex flex-wrap items-end gap-3">
-        <Button primary onClick={() => void onlineHost(2)}>CRÉER UN DUEL (2)</Button>
-        <Button primary onClick={() => void onlineHost(4)}>CRÉER À QUATRE</Button>
+        <Button primary onClick={() => void onlineHost('duel')}>CRÉER UN DUEL (2)</Button>
+        <Button primary onClick={() => void onlineHost('four')}>CRÉER DERNIER DEBOUT (4)</Button>
+        <Button primary onClick={() => void onlineHost('team')}>CRÉER 2 CONTRE 2</Button>
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
@@ -63,7 +68,23 @@ function HomeView() {
             className="w-40 border border-white/30 bg-black/50 px-3 py-2 text-lg tracking-[0.3em] text-white"
           />
         </label>
-        <Button onClick={() => void onlineJoin(code)}>REJOINDRE</Button>
+        <div className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
+          TYPE DU SALON
+          <div className="flex gap-2">
+            {(Object.keys(KIND_LABEL) as RoomKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={kind === k}
+                onClick={() => setKind(k)}
+                className={`border px-3 py-2 text-[11px] tracking-widest ${kind === k ? 'border-iron-amber text-iron-amber' : 'border-white/20 text-white/70'}`}
+              >
+                {KIND_LABEL[k]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Button onClick={() => void onlineJoin(code, kind)}>REJOINDRE</Button>
       </div>
       {st.error && <p className="text-sm text-red-400">{st.error}</p>}
       <div>
@@ -99,7 +120,7 @@ function LobbyView() {
         {seats.map((p, i) => (
           <div key={i} className="border border-white/15 bg-black/40 p-4">
             <div className="text-xs tracking-widest text-white/50">
-              PLACE {i + 1}{i === me ? ' (toi)' : ''}{p?.bot ? ' · BOT' : ''}
+              PLACE {i + 1}{i === me ? ' (toi)' : ''}{p?.bot ? ' · BOT' : ''}{lobby?.team ? ` · ÉQUIPE ${i % 2 === 0 ? 'A' : 'B'}` : ''}
             </div>
             {p ? (
               <>
@@ -177,17 +198,22 @@ function ResultView() {
   const winner = lobby?.winner ?? null;
   const won = winner === st.slot;
   const ffa = lobby?.ffa === true;
+  const team = lobby?.team === true;
+  const myTeam = st.slot % 2;
+  const teamWon = lobby?.winnerTeam ?? null;
   const votes = lobby?.rematch ?? [];
   const humans = (lobby?.players ?? []).map((p, i) => (p && !p.bot ? i : -1)).filter((i) => i >= 0);
   const myVote = votes[st.slot] === true;
   const votesDone = humans.filter((i) => votes[i]).length;
-  const title = ffa
-    ? (won ? 'PREMIER' : `${(lobby?.placements.length ?? 0) - (lobby?.placements.indexOf(st.slot) ?? 0)}e`)
-    : (winner == null ? 'ÉGALITÉ' : won ? 'VICTOIRE' : 'DÉFAITE');
+  const title = team
+    ? (teamWon == null ? 'ÉGALITÉ' : teamWon === myTeam ? 'VICTOIRE' : 'DÉFAITE')
+    : ffa
+      ? (won ? 'PREMIER' : `${(lobby?.placements.length ?? 0) - (lobby?.placements.indexOf(st.slot) ?? 0)}e`)
+      : (winner == null ? 'ÉGALITÉ' : won ? 'VICTOIRE' : 'DÉFAITE');
   const name = (i: number) => lobby?.players[i]?.name ?? `Place ${i + 1}`;
   return (
     <Frame title={title}>
-      {ffa ? (
+      {ffa || team ? (
         <ol className="space-y-1 text-sm">
           {[...(lobby?.placements ?? [])].reverse().map((id, rank) => (
             <li key={id} className={`flex justify-between border-b border-white/10 py-1 ${id === st.slot ? 'text-iron-amber' : 'text-white/80'}`}>

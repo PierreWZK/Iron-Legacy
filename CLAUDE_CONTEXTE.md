@@ -672,3 +672,54 @@ Pour chaque point : ce qui saccade ou ne marche pas, le ping mesuré, et le scé
 ### Modifications à me renvoyer
 
 Pour chaque point : ce qui ne marche pas ou saccade, le nombre d'humains, et la scène.
+
+---
+
+## 18. Session 11 : phase 10 (2v2 et chacun pour soi)
+
+### Ce qui est fait
+
+- **Chacun pour soi** : déjà fait en phase 9 (mode dernier debout, `ffa`).
+- **2v2 par équipes** (`packages/engine`) :
+  - `createWorld({ heroes, team: true })` : équipe 0 = combattants 0 et 2, équipe 1 = 1 et 3. Départs : équipe 0 à gauche, équipe 1 à droite, coéquipiers côte à côte.
+  - `match.mode = 'team'`, `match.winnerTeam`. Un KO élimine le combattant ; l'équipe perd quand ses deux combattants sont éliminés.
+  - Fin : une seule équipe debout, ou temps écoulé (vie totale d'équipe la plus haute ; égalité = pas de gagnant, `winnerTeam` null).
+  - Coups, pousse-pieds et bots déjà ciblaient « l'autre équipe » : rien à changer côté combat.
+- **Serveur** : salle `team` (4 places, équipe = parité de place), `TeamRoom`. Fin de partie désormais déclenchée par `phase === 'over'` (et non `matchWinner !== null`, qui restait null en cas d'égalité et bloquait la fin).
+- **Protocole** : `team` dans `start` et `lobby`, `winnerTeam` dans `lobby` et `result`.
+- **Client** : trois types de salon (DUEL, DERNIER DEBOUT, 2 CONTRE 2) à la création et au rejoindre. Étiquettes ÉQUIPE A/B au salon. Résultat VICTOIRE/DÉFAITE par équipe, classement en liste.
+
+### Bug trouvé et corrigé
+
+- Un membre de l'équipe gagnante déjà éliminé était reclassé en dernier. Seuls les vivants passent en dernier maintenant.
+- Côté serveur, la fin de partie dépendait de `matchWinner !== null` : en égalité au temps elle n'arrivait jamais. Corrigé avec `phase === 'over'`.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| Moteur : 126 tests dont 7 nouveaux `team.test.ts` (départs, victoire d'équipe, temps écoulé, égalité, classement, 4 bots jusqu'à la fin) | **Tout passe** |
+| Serveur : 3 tests dont 1 nouveau `team.test.ts` (2 humains + 2 bots, deux clients, zéro divergence) | **Tout passe** |
+| `npm run typecheck`, `npm run build` | OK |
+| Navigateur : salon 2v2, 1 humain + 3 bots, équipes 0-2 / 1-3 correctes, HUD à 4 barres, désync 0 | OK |
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Match 2v2 complet non joué dans le navigateur** : le navigateur simule à environ 6 ticks/s quand l'onglet a le focus (un match fait 5940 ticks). La fin d'équipe est couverte par les tests moteur, pas par une partie jouée à l'écran.
+- **Étiquette d'équipe dans le HUD en combat** : absente (seule la liste de vie, sans équipe).
+- **Pas de coéquipiers contrôlés par l'IA choisie** : les bots prennent le niveau 4 fixe.
+- **Pas d'alliance visuelle** (couleur d'équipe sur les personnages) : non faite.
+- **Forfait et revanche en 2v2** : non testés à la main.
+- **Caméra à quatre** : cadre tous les combattants, non vérifiée en plein combat.
+
+### Tests à faire par toi
+
+1. `npm run server`, puis quatre joueurs ou trois humains plus un bot : EN LIGNE → CRÉER 2 CONTRE 2 ; les autres REJOINDRE avec le type « 2 CONTRE 2 ».
+2. Vérifie que chaque équipe est bien A (places 1 et 3) et B (places 2 et 4) au salon.
+3. Laisse une équipe être éliminée : l'écran doit annoncer VICTOIRE ou DÉFAITE selon ton équipe.
+4. Laisse le temps s'écouler à égalité : l'écran doit annoncer ÉGALITÉ.
+5. Vérifie la caméra (les quatre combattants restent dans le cadre) et dis-moi si une couleur d'équipe manque.
+
+### Modifications à me renvoyer
+
+Pour chaque point : le scénario (qui était dans quelle équipe), ce qui ne s'affiche pas, et la caméra si elle décroche.

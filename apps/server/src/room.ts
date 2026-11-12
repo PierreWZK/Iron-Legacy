@@ -29,6 +29,8 @@ interface Seat {
 export abstract class FightRoom extends Room {
   abstract readonly size: number;
   abstract readonly ffa: boolean;
+  /** Mode équipes 2v2 (places 0 et 2 contre 1 et 3). */
+  abstract readonly team: boolean;
 
   private code = '';
   private seats: (Seat | null)[] = [];
@@ -39,6 +41,7 @@ export abstract class FightRoom extends Room {
   private seq = 0;
   private rematch: boolean[] = [];
   private winner: number | null = null;
+  private winnerTeam: number | null = null;
   private placements: number[] = [];
   private pending: Map<number, number>[] = [];
   private last: number[] = [];
@@ -118,7 +121,7 @@ export abstract class FightRoom extends Room {
       this.broadcastLobby();
       return;
     }
-    if (this.ffa) {
+    if (this.ffa || this.team) {
       // Le combattant abandonné est éliminé ; sa place reste en combat sans contrôle humain.
       const seat = this.seats[slot];
       if (seat) {
@@ -213,7 +216,7 @@ export abstract class FightRoom extends Room {
   private startMatch(): void {
     const seats = this.seats as Seat[];
     this.seq += 1;
-    this.world = createWorld({ heroes: seats.map((s) => s.hero), intro: true, ffa: this.ffa });
+    this.world = createWorld({ heroes: seats.map((s) => s.hero), intro: true, ffa: this.ffa, team: this.team });
     this.phase = 'fight';
     this.running = true;
     this.winner = null;
@@ -226,7 +229,7 @@ export abstract class FightRoom extends Room {
       const slot = this.slotOf(client.sessionId);
       if (slot < 0) continue;
       this.sendTo(client, {
-        type: 'start', seq: this.seq, slot, heroes: seats.map((s) => s.hero), arena: this.arena, ffa: this.ffa,
+        type: 'start', seq: this.seq, slot, heroes: seats.map((s) => s.hero), arena: this.arena, ffa: this.ffa, team: this.team,
       });
     }
     this.broadcastLobby();
@@ -255,15 +258,17 @@ export abstract class FightRoom extends Room {
     if (world.tick % HASH_EVERY === 0) {
       this.broadcast('hash', { type: 'hash', t: world.tick, h: worldHash(world) } satisfies ServerMessage);
     }
-    if (world.match.matchWinner !== null) this.endMatch(world.match.matchWinner);
+    // Fin de partie : phase 'over' (le gagnant peut être null en cas d'égalité au temps).
+    if (world.match.phase === 'over') this.endMatch(world.match.matchWinner, world.match.winnerTeam);
   }
 
-  private endMatch(winner: number): void {
+  private endMatch(winner: number | null, winnerTeam: number | null = null): void {
     this.running = false;
     this.phase = 'result';
     this.winner = winner;
+    this.winnerTeam = winnerTeam;
     this.placements = this.world?.match.placements ?? [];
-    this.broadcast('result', { type: 'result', winner } satisfies ServerMessage);
+    this.broadcast('result', { type: 'result', winner, winnerTeam } satisfies ServerMessage);
     this.broadcastLobby();
   }
 
@@ -277,7 +282,8 @@ export abstract class FightRoom extends Room {
     );
     return {
       code: this.code, phase: this.phase, arena: this.arena, size: this.size, players,
-      rematch: this.rematch, ffa: this.ffa, winner: this.winner, placements: this.placements,
+      rematch: this.rematch, ffa: this.ffa, team: this.team, winner: this.winner, winnerTeam: this.winnerTeam,
+      placements: this.placements,
     };
   }
 
@@ -294,10 +300,19 @@ export abstract class FightRoom extends Room {
 export class DuelRoom extends FightRoom {
   readonly size = 2;
   readonly ffa = false;
+  readonly team = false;
 }
 
 /** Quatre combattants, dernier debout. Places libres comblées par des bots. */
 export class FourRoom extends FightRoom {
   readonly size = 4;
   readonly ffa = true;
+  readonly team = false;
+}
+
+/** Quatre combattants en deux équipes de deux (2v2). */
+export class TeamRoom extends FightRoom {
+  readonly size = 4;
+  readonly ffa = false;
+  readonly team = true;
 }

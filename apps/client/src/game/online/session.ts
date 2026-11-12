@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { isRoomCode, ROOM_CODE_CHARS, type LobbyState, type ServerMessage } from '@iron/engine';
 import { runtime } from '../runtime';
 import { backToMenu, useApp } from '../store';
-import { closeRoom, openRoom, sendMessage } from './connection';
+import { closeRoom, openRoom, sendMessage, type RoomKind } from './connection';
 
 export type OnlineScreen = 'home' | 'lobby' | 'match' | 'result';
 
@@ -14,6 +14,8 @@ export interface OnlineState {
   slot: number;
   /** Nombre de places du salon (2 ou 4). */
   size: number;
+  /** Type du salon courant. */
+  kind: RoomKind;
   lobby: LobbyState | null;
   error: string | null;
   connected: boolean;
@@ -29,6 +31,7 @@ export const useOnline = create<OnlineState>(() => ({
   code: '',
   slot: 0,
   size: 2,
+  kind: 'duel',
   lobby: null,
   error: null,
   connected: false,
@@ -55,24 +58,24 @@ export function onlineSetName(name: string): void {
 }
 
 /** Crée un salon : 2 places (duel) ou 4 places (dernier debout). */
-export async function onlineHost(size: 2 | 4 = 2): Promise<void> {
-  await connect('create', randomCode(), 0, size);
+export async function onlineHost(kind: RoomKind = 'duel'): Promise<void> {
+  await connect('create', randomCode(), 0, kind);
 }
 
-export async function onlineJoin(code: string): Promise<void> {
+export async function onlineJoin(code: string, kind: RoomKind): Promise<void> {
   const c = code.trim().toUpperCase();
   if (!isRoomCode(c)) {
     useOnline.setState({ error: 'Code invalide : 5 caractères (lettres et chiffres 2 à 9).' });
     return;
   }
-  await connect('join', c, 1, 'auto');
+  await connect('join', c, 1, kind);
 }
 
-async function connect(mode: 'create' | 'join', code: string, slot: number, size: 2 | 4 | 'auto'): Promise<void> {
-  const shown = size === 'auto' ? 2 : size;
-  useOnline.setState({ error: null, code, slot, size: shown, connected: false, lobby: null, screen: 'lobby', ping: null, desyncs: 0 });
+async function connect(mode: 'create' | 'join', code: string, slot: number, kind: RoomKind): Promise<void> {
+  const size = kind === 'duel' ? 2 : 4;
+  useOnline.setState({ error: null, code, slot, size, kind, connected: false, lobby: null, screen: 'lobby', ping: null, desyncs: 0 });
   try {
-    await openRoom(mode, code, useOnline.getState().name, size, handle, onClose);
+    await openRoom(mode, code, useOnline.getState().name, kind, handle, onClose);
     useOnline.setState({ connected: true });
     startPing();
   } catch (e) {
@@ -120,6 +123,7 @@ function handle(m: ServerMessage): void {
         heroes: m.heroes,
         arena: m.arena,
         ffa: m.ffa,
+        team: m.team,
         sendInput: (t, bits) => sendMessage({ type: 'input', t, i: bits }),
       });
       useApp.setState((s) => ({ screen: 'fight', runId: s.runId + 1 }));
@@ -142,7 +146,7 @@ function handle(m: ServerMessage): void {
       return;
     case 'result': {
       const lobby = useOnline.getState().lobby;
-      if (lobby) useOnline.setState({ lobby: { ...lobby, winner: m.winner } });
+      if (lobby) useOnline.setState({ lobby: { ...lobby, winner: m.winner, winnerTeam: m.winnerTeam } });
       return;
     }
     case 'pong':

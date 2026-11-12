@@ -4,9 +4,11 @@ import type { World } from './state';
 export const ROOM_NAME = 'duel';
 /** Nom de la salle à quatre combattants (4 places, dernier debout). */
 export const FOUR_ROOM_NAME = 'four';
+/** Salle 2v2 : quatre places, équipes par parité de place (0 et 2 contre 1 et 3). */
+export const TEAM_ROOM_NAME = 'team';
 /** Salle des quatre combattants : nom Colyseus et taille de la place. */
 /** Nombre de places par salle. */
-export const ROOM_SIZE: Record<string, number> = { [ROOM_NAME]: 2, [FOUR_ROOM_NAME]: 4 };
+export const ROOM_SIZE: Record<string, number> = { [ROOM_NAME]: 2, [FOUR_ROOM_NAME]: 4, [TEAM_ROOM_NAME]: 4 };
 /** Envoie une empreinte d'état au client toutes les N frames (détection des divergences). */
 export const HASH_EVERY = 30;
 /** Avance maximale du client sur le serveur confirmé, en ticks (au-delà, le client attend). */
@@ -36,6 +38,10 @@ export interface LobbyState {
   rematch: boolean[];
   /** Mode dernier debout (salle à quatre). */
   ffa: boolean;
+  /** Mode équipes 2v2. */
+  team: boolean;
+  /** Mode équipes : équipe gagnante (null si égalité au temps). */
+  winnerTeam: number | null;
   /** Duel : id du vainqueur. Dernier debout : id du vainqueur. */
   winner: number | null;
   /** Mode dernier debout : ids dans l'ordre d'élimination (vainqueur en dernier). */
@@ -59,13 +65,13 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'welcome'; slot: number }
   | { type: 'lobby'; state: LobbyState }
-  | { type: 'start'; seq: number; slot: Slot; heroes: string[]; arena: string; ffa: boolean }
+  | { type: 'start'; seq: number; slot: Slot; heroes: string[]; arena: string; ffa: boolean; team: boolean }
   /** Entrées utilisées par le serveur pour simuler le tick `t`, par emplacement. */
   | { type: 'tick'; t: number; inputs: number[] }
   /** Empreinte de l'état après le tick `t`. */
   | { type: 'hash'; t: number; h: string }
   | { type: 'snapshot'; world: World }
-  | { type: 'result'; winner: number | null }
+  | { type: 'result'; winner: number | null; winnerTeam: number | null }
   | { type: 'pong'; ts: number }
   | { type: 'error'; message: string };
 
