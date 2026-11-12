@@ -2,7 +2,7 @@
 # ATTENTION : non testé (Docker absent de la machine de développement). À valider avant la mise en ligne.
 FROM node:22-alpine
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/engine/package.json packages/engine/
 COPY apps/server/package.json apps/server/
 COPY apps/client/package.json apps/client/
