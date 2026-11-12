@@ -831,3 +831,27 @@ Pour chaque point : l'écran, ce qui ne se sauvegarde pas ou ne se recharge pas,
 ### Modifications à me renvoyer
 
 Le message d'erreur exact du build Docker, et ce que tu veux décider pour le déploiement (dépôt, Coolify, Postgres).
+
+---
+
+## 21. Session 14 : mise en ligne (Coolify)
+
+### Ce qui est fait
+
+- Dépôt GitHub public `PierreWZK/Iron-Legacy` (PR #1 fusionnée par toi, #2 et #3 par moi).
+- `CORS_ORIGIN` : l'API des comptes n'accepte plus que `https://iron.projectp.fr` en production.
+- Dockerfile client (build Vite puis nginx) ajouté. Premier build client échoué : `tsconfig.base.json` non copié dans l'image. Corrigé dans les deux Dockerfiles (PR #3).
+- Coolify : projet « Iron Legacy », serveur (https://iron-api.projectp.fr, volume `/data`) et client (https://iron.projectp.fr). Détails dans `docs/DEPLOY.md`.
+
+### Vérifié en ligne
+
+- https://iron-api.projectp.fr/api/ranking répond `{"rows":[]}` avec `Access-Control-Allow-Origin: https://iron.projectp.fr`.
+- https://iron.projectp.fr : menu, écran COMPTE (classement lu depuis l'API), création d'un salon de duel en `wss://` (connecté, ping 28 ms).
+
+### Non vérifié ou non fait
+
+- **Partie en ligne à deux machines sur le site réel** : non jouée.
+- **Inscription et sauvegarde sur le serveur réel** : non testées (pour ne pas créer de compte dans la base de production).
+- **Postgres** : toujours SQLite sur volume. **Sauvegardes du volume** : non configurées.
+- **Rebuild du serveur avec le correctif Dockerfile** : non relancé (le serveur actuel tourne, il n'avait pas besoin du correctif).
+- Pas de déploiement automatique à chaque fusion (à lancer à la main ou via webhook Coolify).

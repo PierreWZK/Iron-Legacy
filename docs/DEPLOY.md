@@ -1,6 +1,15 @@
 # Déploiement (Coolify) — à valider avant exécution
 
-État : **non déployé**. Ce document décrit la configuration prévue. Rien n'est en ligne tant qu'il n'est pas exécuté.
+État : **en ligne depuis le 2026-11-12** sur Coolify (`coolify.projectp.fr`), projet « Iron Legacy » (`htkr4pxpdd5kkl8fwkx7m3hg`).
+
+| Service | Application Coolify | Adresse |
+|---|---|---|
+| Client (nginx) | `u1zr8jzbtblzsascqsrfenpv` | https://iron.projectp.fr |
+| Serveur (combat, comptes) | `ev5yrm0ojdejg85ny3o9othp` | https://iron-api.projectp.fr (wss://) |
+
+Les deux suivent la branche `master` du dépôt `PierreWZK/Iron-Legacy` (source GitHub `projectp-github`). Un déploiement se lance en POST `applications/<uuid>/start`. Le serveur a un volume persistant `/data` (base SQLite) et les variables `PORT`, `IRON_DB`, `CORS_ORIGIN` (en runtime). Le client reçoit `VITE_SERVER_URL=wss://iron-api.projectp.fr` comme variable de build.
+
+Ce qui suit décrit la configuration d'origine, gardée comme référence.
 
 ## Pré-requis
 
