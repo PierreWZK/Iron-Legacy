@@ -71,6 +71,10 @@ export interface GameEvent {
 }
 
 export interface MatchState {
+  /** duel : manches au meilleur des 3. ffa : une seule partie, dernier debout gagne. */
+  mode: 'duel' | 'ffa';
+  /** Mode ffa : ids des combattants dans l'ordre de leur élimination ; le vainqueur est en dernier. */
+  placements: number[];
   phase: 'intro' | 'fight' | 'ko' | 'over';
   timer: number;
   /** Horloge du round en ticks. */
@@ -100,6 +104,17 @@ export interface DuelOptions {
   /** Vie max (défaut : vie du personnage) et vie de départ (défaut : vie max), joueur 1 puis joueur 2. */
   maxHealth?: [number, number];
   health?: [number, number];
+}
+
+export interface WorldOptions {
+  /** Personnages, dans l'ordre des emplacements (id 0, 1, 2…). */
+  heroes: string[];
+  intro?: boolean;
+  /** Mode dernier debout. */
+  ffa?: boolean;
+  distance?: number;
+  maxHealth?: number[];
+  health?: number[];
 }
 
 const SEED = 0x2f6b9d1;
@@ -141,14 +156,30 @@ export function endMove(f: Fighter): void {
   f.sub = null;
 }
 
-/** Remet le round à zéro : positions face à face, vie pleine, horloge pleine. */
+/** Rayon du cercle de départ pour plus de deux combattants (m). */
+const CIRCLE_RADIUS = 2.4;
+
+/** Positions de départ : face à face pour un duel, en cercle face au centre sinon. */
+export function startPosition(id: number, n: number, distance = START_DISTANCE): { pos: Vec3; facing: { x: number; z: number } } {
+  if (n === 2) {
+    const half = Math.min(distance, ARENA_RADIUS * 2) / 2;
+    const side = id === 0 ? -1 : 1;
+    return { pos: { x: side * half, y: 0, z: 0 }, facing: { x: -side, z: 0 } };
+  }
+  const a = (id / n) * Math.PI * 2 + Math.PI / 4;
+  const x = Math.cos(a) * CIRCLE_RADIUS;
+  const z = Math.sin(a) * CIRCLE_RADIUS;
+  return { pos: { x, y: 0, z }, facing: { x: -Math.cos(a), z: -Math.sin(a) } };
+}
+
+/** Remet le round à zéro : positions de départ, vie pleine, horloge pleine. */
 export function beginRound(w: World, intro: boolean, distance = START_DISTANCE): void {
-  const half = Math.min(distance, ARENA_RADIUS * 2) / 2;
+  const n = w.fighters.length;
   for (const f of w.fighters) {
-    const side = f.id === 0 ? -1 : 1;
-    f.pos = { x: side * half, y: 0, z: 0 };
+    const start = startPosition(f.id, n, distance);
+    f.pos = start.pos;
     f.vel = { x: 0, y: 0, z: 0 };
-    f.facing = { x: -side, z: 0 };
+    f.facing = start.facing;
     f.health = f.maxHealth;
     f.action = 'idle';
     f.actionTicks = 0;
@@ -165,17 +196,21 @@ export function beginRound(w: World, intro: boolean, distance = START_DISTANCE):
   w.match.timer = INTRO_TICKS;
   w.match.clock = ROUND_SECONDS * TICK_RATE;
   w.match.roundWinner = null;
+  w.match.placements = [];
 }
 
-/** Crée un duel (2 combattants) prêt à jouer. */
-export function createDuelWorld(opts: DuelOptions): World {
+/** Crée un combat à N combattants (duel par défaut, dernier debout en mode ffa). */
+export function createWorld(opts: WorldOptions): World {
+  if (opts.heroes.length < 2) throw new Error('Un combat demande au moins deux combattants.');
   const w: World = {
     tick: 0,
-    fighters: [makeFighter(0, 0, opts.p1), makeFighter(1, 1, opts.p2)],
+    fighters: opts.heroes.map((h, i) => makeFighter(i, i, h)),
     hitstop: 0,
     rng: SEED,
     events: [],
     match: {
+      mode: opts.ffa ? 'ffa' : 'duel',
+      placements: [],
       phase: 'fight', timer: 0, clock: 0, round: 1, wins: [0, 0], roundWinner: null, matchWinner: null,
     },
   };
@@ -190,6 +225,17 @@ export function createDuelWorld(opts: DuelOptions): World {
     f.health = Math.min(f.maxHealth, Math.max(0, hp));
   }
   return w;
+}
+
+/** Crée un duel (2 combattants) prêt à jouer. */
+export function createDuelWorld(opts: DuelOptions): World {
+  return createWorld({
+    heroes: [opts.p1, opts.p2],
+    intro: opts.intro,
+    distance: opts.distance,
+    maxHealth: opts.maxHealth,
+    health: opts.health,
+  });
 }
 
 /** Nombre pseudo-aléatoire dans [0,1) ; mute `w.rng` (déterministe). */

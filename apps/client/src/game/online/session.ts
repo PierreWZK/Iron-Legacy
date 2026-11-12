@@ -10,8 +10,10 @@ export interface OnlineState {
   screen: OnlineScreen;
   name: string;
   code: string;
-  /** Place occupée dans le salon (0 = hôte, 1 = invité). */
-  slot: 0 | 1;
+  /** Place occupée dans le salon (0 = hôte). Connue dès le message « welcome ». */
+  slot: number;
+  /** Nombre de places du salon (2 ou 4). */
+  size: number;
   lobby: LobbyState | null;
   error: string | null;
   connected: boolean;
@@ -26,6 +28,7 @@ export const useOnline = create<OnlineState>(() => ({
   name: 'Joueur',
   code: '',
   slot: 0,
+  size: 2,
   lobby: null,
   error: null,
   connected: false,
@@ -51,8 +54,9 @@ export function onlineSetName(name: string): void {
   useOnline.setState({ name: name.slice(0, 16) });
 }
 
-export async function onlineHost(): Promise<void> {
-  await connect('create', randomCode(), 0);
+/** Crée un salon : 2 places (duel) ou 4 places (dernier debout). */
+export async function onlineHost(size: 2 | 4 = 2): Promise<void> {
+  await connect('create', randomCode(), 0, size);
 }
 
 export async function onlineJoin(code: string): Promise<void> {
@@ -61,13 +65,14 @@ export async function onlineJoin(code: string): Promise<void> {
     useOnline.setState({ error: 'Code invalide : 5 caractères (lettres et chiffres 2 à 9).' });
     return;
   }
-  await connect('join', c, 1);
+  await connect('join', c, 1, 'auto');
 }
 
-async function connect(mode: 'create' | 'join', code: string, slot: 0 | 1): Promise<void> {
-  useOnline.setState({ error: null, code, slot, connected: false, lobby: null, screen: 'lobby', ping: null, desyncs: 0 });
+async function connect(mode: 'create' | 'join', code: string, slot: number, size: 2 | 4 | 'auto'): Promise<void> {
+  const shown = size === 'auto' ? 2 : size;
+  useOnline.setState({ error: null, code, slot, size: shown, connected: false, lobby: null, screen: 'lobby', ping: null, desyncs: 0 });
   try {
-    await openRoom(mode, code, useOnline.getState().name, handle, onClose);
+    await openRoom(mode, code, useOnline.getState().name, size, handle, onClose);
     useOnline.setState({ connected: true });
     startPing();
   } catch (e) {
@@ -99,9 +104,12 @@ function onClose(reason: string): void {
 /** Traite les messages du serveur. */
 function handle(m: ServerMessage): void {
   switch (m.type) {
+    case 'welcome':
+      useOnline.setState({ slot: m.slot });
+      return;
     case 'lobby': {
       const st = useOnline.getState();
-      useOnline.setState({ lobby: m.state });
+      useOnline.setState({ lobby: m.state, size: m.state.size });
       if (st.screen !== 'match' && st.screen !== 'result') useOnline.setState({ screen: 'lobby' });
       return;
     }
@@ -111,6 +119,7 @@ function handle(m: ServerMessage): void {
         slot: m.slot,
         heroes: m.heroes,
         arena: m.arena,
+        ffa: m.ffa,
         sendInput: (t, bits) => sendMessage({ type: 'input', t, i: bits }),
       });
       useApp.setState((s) => ({ screen: 'fight', runId: s.runId + 1 }));
@@ -155,6 +164,11 @@ export function onlineSetReady(ready: boolean): void {
 
 export function onlineSetArena(arena: string): void {
   sendMessage({ type: 'arena', arena });
+}
+
+/** Hôte : ajoute ou retire un bot. */
+export function onlineBot(add: boolean): void {
+  sendMessage({ type: 'bot', add });
 }
 
 export function onlineStart(): void {

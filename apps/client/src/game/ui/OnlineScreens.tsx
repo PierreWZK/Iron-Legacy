@@ -2,7 +2,7 @@ import { ARENA_IDS, CHARACTER_IDS, getCharacter } from '@iron/engine';
 import { useState, type ReactNode } from 'react';
 import { useProgress } from '../progress';
 import {
-  onlineHost, onlineJoin, onlineLeave, onlineRematch, onlineSetArena, onlineSetHero, onlineSetName,
+  onlineBot, onlineHost, onlineJoin, onlineLeave, onlineRematch, onlineSetArena, onlineSetHero, onlineSetName,
   onlineSetReady, onlineStart, useOnline,
 } from '../online/session';
 
@@ -38,7 +38,7 @@ function HomeView() {
   return (
     <Frame title="EN LIGNE">
       <p className="max-w-2xl text-sm text-white/70">
-        Crée un salon et envoie le code à ton adversaire, ou rejoins un salon avec son code. Duel à deux joueurs, serveur autoritaire.
+        Crée un salon et envoie le code à tes adversaires, ou rejoins un salon avec son code. Duel à deux, ou dernier debout à quatre (les places libres peuvent être comblées par des bots).
       </p>
       <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
         PSEUDO
@@ -50,7 +50,8 @@ function HomeView() {
         />
       </label>
       <div className="flex flex-wrap items-end gap-3">
-        <Button primary onClick={() => void onlineHost()}>CRÉER UN SALON</Button>
+        <Button primary onClick={() => void onlineHost(2)}>CRÉER UN DUEL (2)</Button>
+        <Button primary onClick={() => void onlineHost(4)}>CRÉER À QUATRE</Button>
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
@@ -78,12 +79,15 @@ function LobbyView() {
   const lobby = st.lobby;
   const me = st.slot;
   const isHost = me === 0;
-  const seats = lobby?.players ?? [null, null];
+  const size = lobby?.size ?? st.size;
+  const seats = lobby?.players ?? Array.from({ length: size }, () => null);
   const mine = seats[me];
-  const bothReady = !!seats[0] && !!seats[1] && seats[0].ready && seats[1].ready;
+  const allReady = seats.length === size && seats.every((p) => p !== null && p.ready);
+  const botCount = seats.filter((p) => p?.bot).length;
+  const freeSeats = seats.some((p) => p === null);
 
   return (
-    <Frame title="SALON">
+    <Frame title={`SALON · ${size} JOUEURS`}>
       <p className="text-sm text-white/60">
         Code du salon : <span className="text-2xl tracking-[0.4em] text-iron-amber">{st.code}</span>
         {' '}· {st.connected ? 'connecté' : 'connexion…'}
@@ -91,26 +95,25 @@ function LobbyView() {
       </p>
       {st.error && <p className="text-sm text-red-400">{st.error}</p>}
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        {[0, 1].map((i) => {
-          const p = seats[i];
-          return (
-            <div key={i} className="border border-white/15 bg-black/40 p-4">
-              <div className="text-xs tracking-widest text-white/50">JOUEUR {i + 1}{i === me ? ' (toi)' : ''}</div>
-              {p ? (
-                <>
-                  <div className="mt-1 text-lg tracking-widest">{p.name}</div>
-                  <div className="text-sm text-white/70">{getCharacter(p.hero).name}</div>
-                  <div className={`mt-1 text-xs ${p.ready ? 'text-iron-cyan' : 'text-white/40'}`}>
-                    {p.ready ? 'PRÊT' : 'pas prêt'}{!p.connected ? ' · déconnecté' : ''}
-                  </div>
-                </>
-              ) : (
-                <div className="mt-1 text-sm text-white/40">En attente d'un adversaire…</div>
-              )}
+      <section className={`grid gap-3 ${size > 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2'}`}>
+        {seats.map((p, i) => (
+          <div key={i} className="border border-white/15 bg-black/40 p-4">
+            <div className="text-xs tracking-widest text-white/50">
+              PLACE {i + 1}{i === me ? ' (toi)' : ''}{p?.bot ? ' · BOT' : ''}
             </div>
-          );
-        })}
+            {p ? (
+              <>
+                <div className="mt-1 text-lg tracking-widest">{p.name}</div>
+                <div className="text-sm text-white/70">{getCharacter(p.hero).name}</div>
+                <div className={`mt-1 text-xs ${p.ready ? 'text-iron-cyan' : 'text-white/40'}`}>
+                  {p.ready ? 'PRÊT' : 'pas prêt'}{!p.connected ? ' · déconnecté' : ''}
+                </div>
+              </>
+            ) : (
+              <div className="mt-1 text-sm text-white/40">Place libre…</div>
+            )}
+          </div>
+        ))}
       </section>
 
       {mine && (
@@ -155,7 +158,13 @@ function LobbyView() {
         <Button onClick={() => onlineSetReady(!mine?.ready)} disabled={!mine}>
           {mine?.ready ? 'PAS PRÊT' : 'PRÊT'}
         </Button>
-        {isHost && <Button primary onClick={onlineStart} disabled={!bothReady}>LANCER LE COMBAT</Button>}
+        {isHost && (
+          <>
+            <Button onClick={() => onlineBot(true)} disabled={!freeSeats}>+ BOT</Button>
+            <Button onClick={() => onlineBot(false)} disabled={botCount === 0}>− BOT</Button>
+            <Button primary onClick={onlineStart} disabled={!allReady}>LANCER LE COMBAT</Button>
+          </>
+        )}
         <Button onClick={onlineLeave}>QUITTER</Button>
       </div>
     </Frame>
@@ -165,17 +174,33 @@ function LobbyView() {
 function ResultView() {
   const st = useOnline();
   const lobby = st.lobby;
-  const won = lobby?.winner === st.slot;
-  const votes = lobby?.rematch ?? [false, false];
-  const myVote = votes[st.slot];
-  const otherVote = votes[1 - st.slot];
+  const winner = lobby?.winner ?? null;
+  const won = winner === st.slot;
+  const ffa = lobby?.ffa === true;
+  const votes = lobby?.rematch ?? [];
+  const humans = (lobby?.players ?? []).map((p, i) => (p && !p.bot ? i : -1)).filter((i) => i >= 0);
+  const myVote = votes[st.slot] === true;
+  const votesDone = humans.filter((i) => votes[i]).length;
+  const title = ffa
+    ? (won ? 'PREMIER' : `${(lobby?.placements.length ?? 0) - (lobby?.placements.indexOf(st.slot) ?? 0)}e`)
+    : (winner == null ? 'ÉGALITÉ' : won ? 'VICTOIRE' : 'DÉFAITE');
+  const name = (i: number) => lobby?.players[i]?.name ?? `Place ${i + 1}`;
   return (
-    <Frame title={lobby?.winner == null ? 'ÉGALITÉ' : won ? 'VICTOIRE' : 'DÉFAITE'}>
-      <p className="text-white/70">
-        {lobby?.players[st.slot]?.name ?? 'Toi'} contre {lobby?.players[1 - st.slot]?.name ?? 'l\'adversaire'}
-      </p>
+    <Frame title={title}>
+      {ffa ? (
+        <ol className="space-y-1 text-sm">
+          {[...(lobby?.placements ?? [])].reverse().map((id, rank) => (
+            <li key={id} className={`flex justify-between border-b border-white/10 py-1 ${id === st.slot ? 'text-iron-amber' : 'text-white/80'}`}>
+              <span>{rank + 1}. {name(id)}{lobby?.players[id]?.bot ? ' (bot)' : ''}</span>
+              <span className="text-white/50">{getCharacter(lobby?.players[id]?.hero ?? 'kairo').name}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="text-white/70">{name(st.slot)} contre {name(1 - st.slot)}</p>
+      )}
       <p className="text-sm text-white/60">
-        Revanche : {myVote ? 'tu as voté' : 'en attente de ton vote'} · {otherVote ? 'adversaire prêt' : 'adversaire pas encore'}
+        Revanche : {myVote ? 'tu as voté' : 'en attente de ton vote'} · {votesDone}/{humans.length} humains prêts
       </p>
       <div className="flex gap-3">
         <Button primary onClick={onlineRematch} disabled={myVote}>REVANCHE</Button>

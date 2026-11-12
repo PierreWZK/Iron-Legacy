@@ -83,7 +83,9 @@ const OPTIONS: readonly Option[] = [
  * Ne triche pas : elle ne lit que l'état public des combattants. Déterministe (RNG du monde).
  * Retourne les BOUTONS À TENIR ce tick ; un bouton déjà tenu au tick précédent est relâché (edge).
  */
-export function aiInput(w: World, self: Fighter, opp: Fighter, level: number): InputFrame {
+export function aiInput(w: World, self: Fighter, opp: Fighter, level: number, rand?: () => number): InputFrame {
+  // Tirages : générateur fourni (bots du serveur) ou RNG du monde (IA locale).
+  const r = rand ?? (() => nextRandom(w));
   if (w.match.phase !== 'fight' || self.stun > 0) return 0;
   const base = PROFILES[Math.min(7, Math.max(1, Math.round(level)))]!;
   const style = getCharacter(self.characterId).aiStyle ?? 'balanced';
@@ -99,8 +101,8 @@ export function aiInput(w: World, self: Fighter, opp: Fighter, level: number): I
     const m = getMove(self.characterId, self.move);
     const recovering = self.moveFrame > m.startup + m.active;
     const canChain = !m.throw && ((m.cancel && self.moveHit) || (m.string === true && recovering));
-    if (canChain && nextRandom(w) < p.chain) {
-      const btn = BUTTONS[Math.floor(nextRandom(w) * BUTTONS.length)]!;
+    if (canChain && r() < p.chain) {
+      const btn = BUTTONS[Math.floor(r() * BUTTONS.length)]!;
       return (self.prevInput & btn) !== 0 ? 0 : btn;
     }
     return 0;
@@ -110,31 +112,64 @@ export function aiInput(w: World, self: Fighter, opp: Fighter, level: number): I
   const dist = Math.hypot(opp.pos.x - self.pos.x, opp.pos.z - self.pos.z);
 
   const threat = opp.action === 'attack' && !opp.moveHit && opp.move !== null;
-  if (threat && dist < 2.4 && nextRandom(w) < p.react) {
+  if (threat && dist < 2.4 && r() < p.react) {
     // Élite : parade quand l'attaque arrive de près (arrière + LP, fenêtre courte).
-    if (style === 'adaptive' && dist < 1.3 && nextRandom(w) < 0.5) return Btn.Back | Btn.LP;
+    if (style === 'adaptive' && dist < 1.3 && r() < 0.5) return Btn.Back | Btn.LP;
     const low = opp.move !== null && getMove(opp.characterId, opp.move).height === 'low';
-    if (low && nextRandom(w) < p.block) return Btn.Back | Btn.Crouch;
+    if (low && r() < p.block) return Btn.Back | Btn.Crouch;
     return Btn.Back;
   }
   // Éclaireur : recule dès qu'il est trop près, après son attaque.
-  if (style === 'hitAndRun' && dist < 1.1 && nextRandom(w) < 0.4) return Btn.Back;
+  if (style === 'hitAndRun' && dist < 1.1 && r() < 0.4) return Btn.Back;
   // Gardien : avance sans cesse.
-  if (style === 'pressure' && dist > 1.0 && nextRandom(w) < 0.8) return Btn.Fwd;
+  if (style === 'pressure' && dist > 1.0 && r() < 0.8) return Btn.Fwd;
   // Lourd : projection à bout portant, sinon coup lourd à distance.
-  if (style === 'heavy' && dist < 1.0 && nextRandom(w) < 0.5) {
+  if (style === 'heavy' && dist < 1.0 && r() < 0.5) {
     return (self.prevInput & (Btn.LP | Btn.RP)) !== 0 ? 0 : Btn.LP | Btn.RP;
   }
   if (dist > 3.0) return Btn.Fwd | Btn.Shift;
   if (dist > 1.7) return Btn.Fwd;
-  if (dist < 0.95) return nextRandom(w) < 0.5 ? Btn.Back : 0;
-  if (nextRandom(w) < p.attack) {
+  if (dist < 0.95) return r() < 0.5 ? Btn.Back : 0;
+  if (r() < p.attack) {
     const usable = OPTIONS.filter((o) => o.level <= level && dist >= o.min && dist <= o.max);
     if (usable.length === 0) return 0;
-    const pick = usable[Math.floor(nextRandom(w) * usable.length)]!;
+    const pick = usable[Math.floor(r() * usable.length)]!;
     const buttons = pick.input & (Btn.LP | Btn.RP | Btn.LK | Btn.RK);
     // Une touche déjà tenue au tick précédent ne génère pas de nouvel appui : on relâche d'abord.
     return (self.prevInput & buttons) !== 0 ? 0 : pick.input;
   }
   return 0;
+}
+
+/** Ennemi vivant le plus proche (autre équipe), ou null. */
+export function nearestEnemy(w: World, self: Fighter): Fighter | null {
+  let best: Fighter | null = null;
+  let bd = Infinity;
+  for (const o of w.fighters) {
+    if (o === self || o.team === self.team || o.health <= 0) continue;
+    const d = (o.pos.x - self.pos.x) ** 2 + (o.pos.z - self.pos.z) ** 2;
+    if (d < bd) {
+      bd = d;
+      best = o;
+    }
+  }
+  return best;
+}
+
+/** Entrée d'un bot dans un combat à N combattants : vise l'ennemi le plus proche. */
+export function botInput(w: World, self: Fighter, level: number, rand?: () => number): InputFrame {
+  const target = nearestEnemy(w, self);
+  if (!target) return 0;
+  return aiInput(w, self, target, level, rand);
+}
+
+/** Générateur pseudo-aléatoire à graine (mulberry32), séparé du RNG du monde. */
+export function makeRng(seed: number): () => number {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }

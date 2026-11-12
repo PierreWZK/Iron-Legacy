@@ -95,6 +95,23 @@ function Centered({ children, className = '' }: { children: React.ReactNode; cla
   );
 }
 
+/** Barres de vie des combattants à partir de trois (dernier debout). */
+function RosterBars({ roster }: { roster: { name: string; hp: number; max: number; alive: boolean }[] }) {
+  return (
+    <div className="mx-auto mt-3 grid max-w-5xl grid-cols-2 gap-2 px-4 sm:grid-cols-4">
+      {roster.map((r, i) => (
+        <div key={i} className={`bg-black/50 p-2 ${r.alive ? '' : 'opacity-40'}`}>
+          <div className="flex justify-between text-[10px] tracking-widest">
+            <span className="text-iron-cyan">{r.name}</span>
+            <span>{r.alive ? `${Math.max(0, Math.round(r.hp))}` : 'KO'}</span>
+          </div>
+          <HealthBar value={r.hp} max={r.max} mirrored={false} color={r.alive ? '#34e0ff' : '#666'} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Interface de combat : barres de vie, round, horloge, combos, dégâts, aide, débogage. */
 export function Hud() {
   const h = useHud();
@@ -107,7 +124,8 @@ export function Hud() {
 
   return (
     <div className="pointer-events-none absolute inset-0 select-none font-display text-white">
-      <div className="mx-auto flex max-w-5xl items-start gap-4 px-6 pt-5">
+      {h.roster.length > 2 && <RosterBars roster={h.roster} />}
+      <div className={`mx-auto flex max-w-5xl items-start gap-4 px-6 pt-5 ${h.roster.length > 2 ? 'hidden' : ''}`}>
         <div className="flex-1 space-y-1">
           <div className="flex justify-between text-xs tracking-widest">
             <span className="text-iron-cyan">{h.names[0]}</span>

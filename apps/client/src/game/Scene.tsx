@@ -59,6 +59,12 @@ function Simulation({ kb }: { kb: KeyboardInput }) {
       mode: runtime.config.mode,
       infinite: runtime.infinite,
     });
+    useHud.setState({
+      ffa: w.match.mode === 'ffa',
+      roster: w.fighters.map((f) => ({
+        name: getCharacter(f.characterId).name, hp: f.health, max: f.maxHealth, alive: f.health > 0,
+      })),
+    });
     acc.since = 0;
     acc.frames = 0;
   }, -1); // priorité négative : la sim passe avant les vues et la caméra
@@ -87,8 +93,9 @@ export function Scene() {
       <Simulation kb={kb} />
       <FightCamera />
       <ArenaScene id={(runtime.config.arena as ArenaId | undefined) ?? arenaFor(p2)} />
-      <FighterView index={0} characterId={p1} />
-      <FighterView index={1} characterId={p2} />
+      {(runtime.online ? runtime.heroes : [p1, p2]).map((hero, i) => (
+        <FighterView key={i} index={i} characterId={hero} />
+      ))}
       <Effects />
     </Canvas>
   );

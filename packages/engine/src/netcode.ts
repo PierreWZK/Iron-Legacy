@@ -2,11 +2,14 @@ import type { InputFrame } from './input';
 import { stepWorld } from './sim';
 import { cloneWorld, type World } from './state';
 
+/** Entrées de tous les combattants pour un tick, par index d'emplacement. */
+export type TickInputs = InputFrame[];
+
 /**
- * Rollback netcode pour un duel à deux joueurs.
+ * Rollback netcode pour un combat à N combattants (duel ou quatre joueurs).
  *
- * Le joueur local voit son action immédiatement : il simule avec son entrée et une prédiction de
- * l'entrée distante (la dernière confirmée). Quand le serveur confirme les entrées réelles d'un tick
+ * Le joueur local voit son action immédiatement : il simule avec son entrée et une prédiction des
+ * entrées distantes (les dernières confirmées). Quand le serveur confirme les entrées réelles d'un tick
  * passé et qu'elles diffèrent de la prédiction, on revient à l'état de ce tick et on rejoue jusqu'au présent.
  *
  * Invariant : après confirmation de tous les ticks, l'état est identique à une simulation directe
@@ -29,15 +32,17 @@ export class Rollback {
   /** État AVANT le tick t, pour chaque tick récent (fenêtre de `horizon` ticks). */
   private states = new Map<number, World>();
   /** Entrées de chaque tick (réelles si confirmées, sinon prédites). */
-  private inputs = new Map<number, [InputFrame, InputFrame]>();
+  private inputs = new Map<number, TickInputs>();
   private confirmed = new Set<number>();
-  private lastRemote: InputFrame = 0;
+  /** Dernière entrée confirmée de chaque emplacement (prédiction des entrées distantes). */
+  private last: TickInputs;
   private readonly horizon: number;
 
   constructor(localIndex: number, initial: World, horizon = 600) {
     this.localIndex = localIndex;
     this.horizon = horizon;
     this.current = cloneWorld(initial);
+    this.last = initial.fighters.map(() => 0);
     this.states.set(this.current.tick, cloneWorld(this.current));
   }
 
@@ -52,16 +57,16 @@ export class Rollback {
   }
 
   /**
-   * Avance d'un tick avec l'entrée locale. L'entrée distante est la dernière confirmée, sauf si le tick
-   * est déjà confirmé (cas d'une correction en attente). Renvoie le monde après le pas.
+   * Avance d'un tick avec l'entrée locale. Les entrées distantes sont prédites (dernière confirmée),
+   * sauf si le tick est déjà confirmé. Renvoie le monde après le pas.
    */
   step(localBits: InputFrame): World {
     const t = this.current.tick;
-    let inp: [InputFrame, InputFrame];
+    let inp: TickInputs;
     if (this.confirmed.has(t)) {
       inp = this.inputs.get(t)!;
     } else {
-      inp = this.localIndex === 0 ? [localBits, this.lastRemote] : [this.lastRemote, localBits];
+      inp = this.last.map((v, i) => (i === this.localIndex ? localBits : v));
       this.inputs.set(t, inp);
     }
     this.states.set(t, cloneWorld(this.current));
@@ -72,15 +77,17 @@ export class Rollback {
   }
 
   /** Entrées réelles d'un tick, reçues du serveur. Corrige l'état si la prédiction était fausse. */
-  confirm(t: number, bits: [InputFrame, InputFrame]): void {
+  confirm(t: number, bits: TickInputs): void {
     const old = this.inputs.get(t);
     this.confirmed.add(t);
     this.inputs.set(t, bits);
     if (t >= this.current.tick) {
-      this.lastRemote = bits[1 - this.localIndex] as InputFrame;
+      bits.forEach((v, i) => {
+        if (i !== this.localIndex) this.last[i] = v;
+      });
       return;
     }
-    if (old && old[0] === bits[0] && old[1] === bits[1]) return;
+    if (old && old.length === bits.length && old.every((v, i) => v === bits[i])) return;
     const start = this.states.get(t);
     if (!start) return; // trop ancien : la resynchronisation serveur prendra le relais
     this.rollbacks++;
@@ -122,17 +129,16 @@ export class Rollback {
     return t === this.current.tick ? this.current : this.states.get(t);
   }
 
-  /** Remplace l'état par un état de référence (serveur) : sert à corriger une divergence. */
+  /** Remplace l'état par un état de référence (serveur) puis rejoue les ticks locaux déjà joués. */
   resync(world: World): void {
     const end = this.current.tick;
     this.current = cloneWorld(world);
     this.states.clear();
     this.states.set(world.tick, cloneWorld(world));
     for (const k of [...this.inputs.keys()]) if (k < world.tick) this.inputs.delete(k);
-    // Rejoue les ticks locaux déjà joués, à partir de l'état de référence.
     for (let k = world.tick; k < end; k++) {
       this.states.set(k, cloneWorld(this.current));
-      stepWorld(this.current, this.inputs.get(k) ?? [0, 0]);
+      stepWorld(this.current, this.inputs.get(k) ?? this.last.map(() => 0));
       this.resimulated++;
     }
   }

@@ -26,7 +26,7 @@ interface Peer {
 function attach(room: Room, peer: Peer): void {
   room.onMessage('start', (msg: ServerMessage & { type: 'start' }) => {
     peer.slot = msg.slot;
-    peer.rb = new Rollback(msg.slot, createDuelWorld({ p1: msg.heroes[0], p2: msg.heroes[1], intro: true }));
+    peer.rb = new Rollback(msg.slot, createDuelWorld({ p1: msg.heroes[0]!, p2: msg.heroes[1]!, intro: true }));
     peer.timer = setInterval(() => {
       const rb = peer.rb!;
       if (rb.tick >= FRAMES) return;

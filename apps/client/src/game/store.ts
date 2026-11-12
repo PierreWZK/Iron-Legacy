@@ -25,6 +25,10 @@ export interface HudState {
   infinite: boolean;
   /** Dernier impact, pour l'affichage des dégâts (stamp = changement à chaque coup). */
   lastHit: { damage: number; counter: boolean; combo: number; stamp: number } | null;
+  /** Tous les combattants (utile à partir de trois). */
+  roster: { name: string; hp: number; max: number; alive: boolean }[];
+  /** Mode dernier debout. */
+  ffa: boolean;
 }
 
 export const useHud = create<HudState>(() => ({
@@ -48,6 +52,8 @@ export const useHud = create<HudState>(() => ({
   mode: 'training',
   infinite: false,
   lastHit: null,
+  roster: [],
+  ffa: false,
 }));
 
 export type Screen = 'menu' | 'fight' | 'arcade' | 'story' | 'robots' | 'online';

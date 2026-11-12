@@ -1,5 +1,5 @@
 import {
-  aiInput, Btn, cloneWorld, createDuelWorld, DT, MAX_AHEAD, Rollback, stepWorld, TICK_RATE, type GameEvent, type World,
+  aiInput, Btn, cloneWorld, createDuelWorld, createWorld, DT, MAX_AHEAD, Rollback, stepWorld, TICK_RATE, type GameEvent, type World,
 } from '@iron/engine';
 import type { Axis, KeyboardInput } from './input/keyboard';
 
@@ -45,6 +45,23 @@ export function fightAxis(w: World): Axis {
   return d > 1e-4 ? { x: (b.x - a.x) / d, z: (b.z - a.z) / d } : { x: 1, z: 0 };
 }
 
+/** Direction du combattant `self` vers l'ennemi vivant le plus proche (repli : axe X). */
+export function axisFor(w: World, self: number): Axis {
+  const me = w.fighters[self]!;
+  let best: { x: number; z: number } | null = null;
+  let bd = Infinity;
+  for (const o of w.fighters) {
+    if (o.id === self || o.team === me.team || o.health <= 0) continue;
+    const d = Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z);
+    if (d < bd) {
+      bd = d;
+      best = { x: o.pos.x, z: o.pos.z };
+    }
+  }
+  if (!best || bd < 1e-4) return { x: 1, z: 0 };
+  return { x: (best.x - me.pos.x) / bd, z: (best.z - me.pos.z) / bd };
+}
+
 /** Entrées du mannequin d'entraînement (déterministes, selon le tick). */
 export function dummyInput(mode: DummyMode, tick: number): number {
   switch (mode) {
@@ -81,6 +98,8 @@ export class Runtime {
   private acc = 0;
   /** Netcode en ligne (null hors ligne). */
   online: Rollback | null = null;
+  /** Personnages de chaque emplacement (2 en duel, 4 en dernier debout). */
+  heroes: string[] = ['kairo', 'vera'];
   /** Envoie l'entrée locale au serveur pour le tick donné. */
   private sendInput: ((t: number, bits: number) => void) | null = null;
   /** Tick le plus avancé confirmé par le serveur (+1). */
@@ -108,9 +127,10 @@ export class Runtime {
   }
 
   /** Démarre un duel en ligne : le monde est simulé localement avec rollback, l'autorité est le serveur. */
-  startOnline(opts: { slot: number; heroes: [string, string]; arena: string; sendInput: (t: number, bits: number) => void }): void {
-    this.config = { p1: opts.heroes[0], p2: opts.heroes[1], mode: 'online', level: 0, dummy: 'idle', arena: opts.arena };
-    const world = createDuelWorld({ p1: opts.heroes[0], p2: opts.heroes[1], intro: true });
+  startOnline(opts: { slot: number; heroes: string[]; arena: string; ffa: boolean; sendInput: (t: number, bits: number) => void }): void {
+    this.heroes = [...opts.heroes];
+    this.config = { p1: opts.heroes[0]!, p2: opts.heroes[1]!, mode: 'online', level: 0, dummy: 'idle', arena: opts.arena };
+    const world = createWorld({ heroes: opts.heroes, intro: true, ffa: opts.ffa });
     this.online = new Rollback(opts.slot, world);
     this.sendInput = opts.sendInput;
     this.serverTick = 0;
@@ -121,12 +141,12 @@ export class Runtime {
     this.shake = 0;
     this.queue = [];
     this.stats = emptyStats();
-    this.lastHp = this.world.fighters[0]!.health;
-    this.playerMin = this.world.fighters[0]!.maxHealth;
+    this.lastHp = this.world.fighters[opts.slot]!.health;
+    this.playerMin = this.world.fighters[opts.slot]!.maxHealth;
   }
 
   /** Entrées réelles du tick t, reçues du serveur. */
-  onlineTick(t: number, inputs: [number, number]): void {
+  onlineTick(t: number, inputs: number[]): void {
     if (!this.online) return;
     this.serverTick = Math.max(this.serverTick, t + 1);
     this.online.confirm(t, inputs);
@@ -162,17 +182,18 @@ export class Runtime {
         this.acc = 0;
         break;
       }
-      const bits = kb.sample(rb.world.fighters[rb.localIndex]!, fightAxis(rb.world));
+      const bits = kb.sample(rb.world.fighters[rb.localIndex]!, axisFor(rb.world, rb.localIndex));
       this.sendInput?.(rb.tick, bits);
       this.prev = cloneWorld(rb.world);
       rb.step(bits);
       this.world = rb.world;
-      const hp = rb.world.fighters[0]!.health;
+      const me = rb.world.fighters[rb.localIndex]!;
+      const hp = me.health;
       if (hp < this.lastHp) this.stats.damageTaken += this.lastHp - hp;
       this.lastHp = hp;
       this.playerMin = Math.min(this.playerMin, hp);
       this.stats.secondsLeft = rb.world.match.clock / TICK_RATE;
-      this.stats.comboMax = Math.max(this.stats.comboMax, rb.world.fighters[0]!.combo);
+      this.stats.comboMax = Math.max(this.stats.comboMax, me.combo);
       for (const e of rb.world.events) {
         this.queue.push(e);
         if (e.kind === 'hit' || e.kind === 'throw') this.shake = Math.max(this.shake, Math.min(1, (e.damage ?? 8) / 12));

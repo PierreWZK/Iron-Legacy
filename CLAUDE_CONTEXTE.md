@@ -624,3 +624,51 @@ Deux machines, même réseau (ou une machine et un ami) :
 ### Modifications à me renvoyer
 
 Pour chaque point : ce qui saccade ou ne marche pas, le ping mesuré, et le scénario (qui a fait quoi, à quel moment).
+
+---
+
+## 17. Session 10 : phase 9 (quatre combattants en ligne, bots, dernier debout)
+
+### Ce qui est fait
+
+- **Moteur à N combattants** : `createWorld({ heroes, ffa })`. `createDuelWorld` est un cas particulier (inchangé). Positions de départ en cercle (rayon 2,4 m) pour quatre.
+- **Mode dernier debout** (`match.ts`, `updateFfa`) : KO = élimination, classement dans `match.placements`. Fin : un seul survivant, ou temps écoulé (plus de vie, puis plus petit id).
+- **Bots serveur** (`ai.ts`) : `botInput` vise l'ennemi vivant le plus proche. `aiInput` accepte un générateur fourni (`rand`). `makeRng` (mulberry32) fournit le hasard des bots, séparé du RNG du monde.
+- **Netcode N entrées** (`netcode.ts`) : entrées par emplacement, prédiction par dernière entrée confirmée.
+- **Serveur** (`apps/server/src/room.ts`) : `FightRoom` générique, `DuelRoom` (2 places, manches) et `FourRoom` (4 places, dernier debout). Bots ajoutés/retirés par l'hôte (`bot`). Joueur qui abandonne en dernier debout = éliminé, place reprise par un bot.
+- **Client** : salon à 4 places, `welcome` (place connue), HUD à 4 barres de vie, écran résultat avec classement, `runtime.heroes` pour N personnages, direction de visée vers l'ennemi le plus proche.
+
+### Bug trouvé et corrigé
+
+- **Divergence à quatre** (tick 180) : les bots tiraient dans le RNG du monde (`nextRandom(w)`), donc l'état serveur et l'état client divergeaient dès qu'un bot combattait. Correction : hasard des bots séparé (`makeRng`), graine fixe par salon. Le hash du monde inclut le RNG, donc tout appel non partagé casse la synchronisation.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm test` : moteur 119 tests (dont 7 FFA, 1 netcode à 4) ; serveur 2 tests (duel à 2 clients, salon à 4 avec 2 humains + 2 bots) | **Tout passe** |
+| `npm run typecheck` (engine, client, server) | OK |
+| `npm run build` | OK |
+| Navigateur : salon à 4 (code F7RPD), 3 bots + 1 humain, prêts, lancement, combat jusqu'à `over` (tick 2100), classement affiché (renard vainqueur, humain 2e), console sans erreur | OK |
+
+### Ce qui n'est pas fait (honnêteté)
+
+- **Pas de test à 4 humains réels** : seulement 2 humains + 2 bots (serveur) et 1 humain + 3 bots (navigateur).
+- **HUD à 4 barres** : code écrit, pas vu à l'écran pendant le combat (le navigateur a été vérifié à l'état final).
+- **Pas de test de forfait en salon à 4** (un humain qui quitte pendant le combat).
+- **Revanche à 4** : le vote n'attend que les humains ; non testé.
+- **Équilibrage** : bots niveau 4 fixe, non réglé.
+- **Visée à 4** : le personnage vise l'ennemi le plus proche, pas de cible choisie ni verrouillage.
+- **Pas de 2v2 ni d'équipes** (phase 10).
+
+### Tests à faire par toi
+
+1. `npm run server`, puis quatre onglets ou quatre machines : EN LIGNE → CRÉER À QUATRE, les autres REJOINDRE avec le code.
+2. Hôte : compléter avec des bots ou attendre quatre humains, tous PRÊT, LANCER.
+3. Vérifie que le HUD affiche les quatre barres de vie et que les KO grisent la barre.
+4. Quitte un joueur en plein combat : il doit être éliminé et sa place reprise par un bot.
+5. Laisse le combat finir : écran résultat avec classement, revanche (tous les humains doivent voter).
+
+### Modifications à me renvoyer
+
+Pour chaque point : ce qui ne marche pas ou saccade, le nombre d'humains, et la scène.
