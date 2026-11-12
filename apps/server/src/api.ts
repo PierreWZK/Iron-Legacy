@@ -24,7 +24,8 @@ export function resetAuthAttempts(): void {
 }
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
+  // CORS_ORIGIN = URL du client en production ; ouvert (*) par défaut pour le développement.
+  'Access-Control-Allow-Origin': process.env['CORS_ORIGIN'] ?? '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
 };
