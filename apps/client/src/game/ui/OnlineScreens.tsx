@@ -1,6 +1,7 @@
-import { ARENA_IDS, CHARACTER_IDS, getCharacter, MODE_PLAYERS, ROOM_MODES, type RoomMode } from '@iron/engine';
+import { ARENA_IDS, getCharacter, MODE_PLAYERS, ROOM_MODES, type RoomMode } from '@iron/engine';
 import { useState, type ReactNode } from 'react';
 import { useProgress } from '../progress';
+import { FighterSelect } from './FighterSelect';
 import {
   inviteLink, onlineBackToLobby, onlineBot, onlineHost, onlineJoin, onlineLeave, onlineRematch, onlineSetArena,
   onlineSetHero, onlineSetMode, onlineSetName, onlineSetReady, onlineStart, useOnline,
@@ -193,25 +194,21 @@ function InviteCard({ code }: { code: string }) {
 
 function LobbyView() {
   const st = useOnline();
-  const unlocked = useProgress((s) => s.unlocked);
   const lobby = st.lobby;
   const me = st.slot;
   const isHost = me === 0;
   const size = lobby?.size ?? st.size;
   const mode: RoomMode = lobby?.mode ?? 'duel';
   const seats = lobby?.players ?? Array.from({ length: size }, () => null);
-  const mine = seats[me];
   const taken = seats.filter((p) => p !== null);
   const counts = MODE_PLAYERS[mode];
   const maxPlayers = Math.max(...counts);
   const countOk = counts.includes(taken.length);
-  const allReady = taken.every((p) => p.ready);
   const botCount = taken.filter((p) => p.bot).length;
   const canAddBot = taken.length < maxPlayers && seats.some((p) => p === null);
   const status = !countOk
     ? `${taken.length} combattant${taken.length > 1 ? 's' : ''} : ce mode se joue à ${counts.join(' ou ')}${isHost && taken.length < maxPlayers ? ' (invite quelqu\'un ou ajoute un bot)' : ''}.`
-    : !allReady ? 'En attente : tout le monde doit être prêt.'
-      : isHost ? 'Tout est prêt : lance le combat !' : 'Tout est prêt : l\'hôte peut lancer.';
+    : isHost ? 'Prêt à lancer : chacun choisira ensuite son combattant.' : 'En attente de l\'hôte : chacun choisira ensuite son combattant.';
 
   return (
     <Frame title="SALON" sub={`${MODES[mode].label} · ${st.connected ? 'CONNECTÉ' : 'CONNEXION…'}${st.ping !== null ? ` · PING ${st.ping} MS` : ''}`}>
@@ -258,24 +255,6 @@ function LobbyView() {
         ))}
       </section>
 
-      {mine && (
-        <Panel title="TON COMBATTANT">
-          <div className="flex flex-wrap gap-2">
-            {CHARACTER_IDS.filter((id) => unlocked.includes(id)).map((id) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={mine.hero === id}
-                onClick={() => onlineSetHero(id)}
-                className={`border px-3 py-2 text-sm tracking-widest short:py-1 ${mine.hero === id ? 'border-iron-amber text-iron-amber' : 'border-white/20 text-white/80'}`}
-              >
-                {getCharacter(id).name}
-              </button>
-            ))}
-          </div>
-        </Panel>
-      )}
-
       <Panel title="DÉCOR">
         <div className="flex flex-wrap gap-2">
           {ARENA_IDS.map((a) => (
@@ -294,21 +273,52 @@ function LobbyView() {
         {!isHost && <p className="text-xs text-white/40">Seul l'hôte choisit le décor.</p>}
       </Panel>
 
-      <p className={`text-sm ${countOk && allReady ? 'text-iron-cyan' : 'text-white/60'}`}>{status}</p>
+      <p className={`text-sm ${countOk ? 'text-iron-cyan' : 'text-white/60'}`}>{status}</p>
       <div className="flex flex-wrap gap-3">
-        <Button primary={!mine?.ready} onClick={() => onlineSetReady(!mine?.ready)} disabled={!mine}>
-          {mine?.ready ? 'PAS PRÊT' : 'PRÊT'}
-        </Button>
         {isHost && (
           <>
             <Button onClick={() => onlineBot(true)} disabled={!canAddBot}>+ BOT</Button>
             <Button onClick={() => onlineBot(false)} disabled={botCount === 0}>− BOT</Button>
-            <Button primary onClick={onlineStart} disabled={!countOk || !allReady}>LANCER LE COMBAT</Button>
+            <Button primary onClick={onlineStart} disabled={!countOk}>LANCER LA PARTIE</Button>
           </>
         )}
         <Button onClick={onlineLeave}>QUITTER</Button>
       </div>
     </Frame>
+  );
+}
+
+/** Sélection des combattants après le lancement : chacun valide, le combat part quand tout le monde est prêt. */
+function PickView() {
+  const st = useOnline();
+  const unlocked = useProgress((s) => s.unlocked);
+  const lobby = st.lobby;
+  const seats = lobby?.players ?? [];
+  const mine = seats[st.slot];
+  const isHost = st.slot === 0;
+  if (!mine) return null;
+  const waiting = seats.filter((p) => p && !p.ready).length;
+  return (
+    <FighterSelect
+      title="CHOISIS TON COMBATTANT"
+      sub={`${lobby ? MODES[lobby.mode].label : ''} · ${mine.ready ? (waiting > 0 ? `EN ATTENTE DE ${waiting} JOUEUR${waiting > 1 ? 'S' : ''}` : 'C\'EST PARTI') : 'VALIDE QUAND TU ES PRÊT'}`}
+      unlocked={unlocked}
+      value={mine.hero}
+      onChange={(id) => onlineSetHero(id)}
+      onConfirm={() => onlineSetReady(!mine.ready)}
+      confirmLabel={mine.ready ? 'ANNULER' : 'PRÊT'}
+      onBack={isHost ? onlineBackToLobby : onlineLeave}
+      tag="TOI"
+      footer={
+        <div className="flex flex-wrap justify-center gap-2 text-[11px] tracking-widest">
+          {seats.map((p, i) => p && (
+            <span key={i} className={`border px-2 py-1 ${p.ready ? 'border-iron-cyan text-iron-cyan' : 'border-white/20 text-white/60'}`}>
+              {i === st.slot ? 'TOI' : p.name} · {getCharacter(p.hero).name} · {p.ready ? 'PRÊT' : 'choisit…'}
+            </span>
+          ))}
+        </div>
+      }
+    />
   );
 }
 
@@ -362,6 +372,7 @@ function ResultView() {
 export function OnlineScreen() {
   const screen = useOnline((s) => s.screen);
   if (screen === 'lobby') return <LobbyView />;
+  if (screen === 'pick') return <PickView />;
   if (screen === 'result') return <ResultView />;
   return <HomeView />;
 }

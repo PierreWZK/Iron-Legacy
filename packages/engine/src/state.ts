@@ -61,6 +61,14 @@ export interface Fighter {
   dashReqTick: number;
   /** Coup depuis le sol demandé pendant la chute : 1 pied gauche, 2 pied droit. */
   wake: number;
+  /**
+   * Anti-répétition : même coup de base relancé coup sur coup (`spam` fois de suite, dernier lancé au tick
+   * `spamTick`). Chaque répétition rallonge la récupération (`extraRecovery`) et réduit les dégâts.
+   */
+  spamMove: MoveId | null;
+  spam: number;
+  spamTick: number;
+  extraRecovery: number;
   /** Entrée au moment du dernier appui d'attaque (la direction d'un coup mémorisé). */
   bufferIn: InputFrame;
   /** Élan de marche (0 à 1) : la vitesse monte en quelques ticks au lieu d'être instantanée. */
@@ -170,6 +178,10 @@ function makeFighter(id: number, team: number, characterId: string): Fighter {
     dashReq: 0,
     dashReqTick: -999,
     wake: 0,
+    spamMove: null,
+    spam: 0,
+    spamTick: -999,
+    extraRecovery: 0,
     pace: 0,
     thrownBy: null,
     crouched: false,
@@ -218,6 +230,9 @@ export function beginRound(w: World, intro: boolean, distance = START_DISTANCE):
     f.buffer = 0;
     f.bufferAge = 0;
     f.wake = 0;
+    f.spamMove = null;
+    f.spam = 0;
+    f.extraRecovery = 0;
     f.dashReq = 0;
     f.pace = 0;
     f.crouched = false;

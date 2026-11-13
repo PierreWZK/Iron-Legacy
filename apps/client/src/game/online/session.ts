@@ -4,7 +4,7 @@ import { runtime } from '../runtime';
 import { backToMenu, useApp } from '../store';
 import { closeRoom, openRoom, sendMessage } from './connection';
 
-export type OnlineScreen = 'home' | 'lobby' | 'match' | 'result';
+export type OnlineScreen = 'home' | 'lobby' | 'pick' | 'match' | 'result';
 
 export interface OnlineState {
   screen: OnlineScreen;
@@ -151,8 +151,9 @@ function handle(m: ServerMessage): void {
     case 'lobby': {
       const st = useOnline.getState();
       useOnline.setState({ lobby: m.state, size: m.state.size });
-      // Retour au salon décidé par l'hôte après un combat.
-      if (st.screen !== 'match' && (st.screen !== 'result' || m.state.phase === 'lobby')) useOnline.setState({ screen: 'lobby' });
+      // Sélection des combattants, ou retour au salon décidé par l'hôte (après un combat, pendant la sélection).
+      if (m.state.phase === 'pick' && st.screen !== 'match') useOnline.setState({ screen: 'pick' });
+      else if (st.screen !== 'match' && (st.screen !== 'result' || m.state.phase === 'lobby')) useOnline.setState({ screen: 'lobby' });
       return;
     }
     case 'start': {

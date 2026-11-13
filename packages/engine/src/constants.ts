@@ -35,7 +35,7 @@ export const PARRY_TICKS = 16;
 /** Fenêtre de parade active (frames depuis le début de la garde). */
 export const PARRY_WINDOW = 8;
 export const PARRY_STUN = 24;
-export const THROW_RANGE = 1.0;
+export const THROW_RANGE = 1.25;
 /** Distance (m) à laquelle l'adversaire est tenu pendant une prise. */
 export const THROW_GRAB_DISTANCE = 0.7;
 export const TECH_STUN = 14;

@@ -81,7 +81,7 @@ function applyStrike(w: World, { a, d, m, counter, parry }: Candidate): void {
   }
 
   if (isBlocking(d, m)) {
-    const chip = Math.max(1, Math.round(m.damage * 0.1));
+    const chip = Math.max(1, Math.round(m.damage * 0.1 * spamScale(a)));
     d.health = Math.max(0, d.health - chip);
     endMove(d);
     d.action = d.crouched ? 'crouchBlock' : 'block';
@@ -96,7 +96,7 @@ function applyStrike(w: World, { a, d, m, counter, parry }: Candidate): void {
     return;
   }
 
-  const dmg = Math.round(m.damage * comboScale(a.combo) * (counter ? COUNTER_DAMAGE : 1));
+  const dmg = Math.max(1, Math.round(m.damage * comboScale(a.combo) * (counter ? COUNTER_DAMAGE : 1) * spamScale(a)));
   d.health = Math.max(0, d.health - dmg);
   endMove(d);
   const air = isAirborne(d);
@@ -149,4 +149,9 @@ function applyThrow(w: World, { a, d, m }: Candidate): void {
   a.comboTimer = COMBO_RESET_TICKS;
   w.events.push({ kind: 'throw', fighter: d.id, x: d.pos.x, y: 1, z: d.pos.z, damage: m.damage, move: a.move });
   w.hitstop = Math.max(w.hitstop, HITSTOP_HIT);
+}
+
+/** Dégâts d'un coup de base répété coup sur coup : -20 % par répétition, 40 % au minimum. */
+export function spamScale(a: Fighter): number {
+  return a.move !== null && a.move === a.spamMove ? Math.max(0.4, 1 - 0.2 * a.spam) : 1;
 }

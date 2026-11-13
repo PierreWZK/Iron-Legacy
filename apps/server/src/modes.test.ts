@@ -71,4 +71,31 @@ describe('salon unique : mode choisi par l\'hôte', () => {
     expect(slot).toBe(0);
     b.leave();
   }, 10000);
+
+  it('lancer sans être prêts : sélection des combattants, le combat part quand tous valident', async () => {
+    const client = new Client(`ws://localhost:${PORT}`);
+    const host = await client.create('fight', { code: 'MODE4', name: 'A', mode: 'duel' });
+    const b = await client.join('fight', { code: 'MODE4', name: 'B' });
+    let lobby: LobbyState | null = null;
+    const starts: { heroes: string[] }[] = [];
+    host.onMessage('lobby', (m: { state: LobbyState }) => { lobby = m.state; });
+    for (const r of [host, b]) {
+      r.onMessage('start', (m: { heroes: string[] }) => starts.push(m));
+      r.onMessage('*', () => {});
+    }
+    await wait(150);
+    host.send('start', {});
+    await wait(150);
+    expect(lobby!.phase).toBe('pick');
+    b.send('hero', { hero: 'nyx' });
+    host.send('ready', { ready: true });
+    await wait(150);
+    expect(starts).toHaveLength(0);
+    b.send('ready', { ready: true });
+    await wait(200);
+    expect(starts).toHaveLength(2);
+    expect(starts[0]!.heroes[1]).toBe('nyx');
+    host.leave();
+    b.leave();
+  }, 10000);
 });

@@ -36,7 +36,8 @@ export interface LobbyPlayer {
 
 export interface LobbyState {
   code: string;
-  phase: 'lobby' | 'fight' | 'result';
+  /** pick : chacun choisit son combattant (lancé par l'hôte), le combat part quand tous sont prêts. */
+  phase: 'lobby' | 'pick' | 'fight' | 'result';
   arena: string;
   /** Nombre de places (4). */
   size: number;

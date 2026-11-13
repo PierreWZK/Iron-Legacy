@@ -105,7 +105,7 @@ export class FightRoom extends Room {
     const slot = this.slotOf(client.sessionId);
     if (slot < 0) return;
     const seat = this.seats[slot]!;
-    if (this.phase === 'lobby' || consented) {
+    if (this.phase === 'lobby' || this.phase === 'pick' || consented) {
       this.dropSeat(slot);
       return;
     }
@@ -131,7 +131,9 @@ export class FightRoom extends Room {
     }
     this.seats[slot] = null;
     if (slot === 0) this.promoteHost();
-    this.broadcastLobby();
+    // Quelqu'un part pendant la sélection : tout le monde revient au salon.
+    if (this.phase === 'pick') this.toLobby();
+    else this.broadcastLobby();
   }
 
   /** L'hôte est parti : le premier humain restant prend la place 0 (et devient hôte). */
@@ -167,7 +169,7 @@ export class FightRoom extends Room {
 
   private onHero(client: Client, msg: { hero?: unknown }): void {
     const slot = this.slotOf(client.sessionId);
-    if (slot < 0 || this.phase !== 'lobby') return;
+    if (slot < 0 || (this.phase !== 'lobby' && this.phase !== 'pick')) return;
     if (typeof msg.hero !== 'string' || !CHARACTER_IDS.includes(msg.hero)) return;
     const seat = this.seats[slot]!;
     seat.hero = msg.hero;
@@ -177,8 +179,13 @@ export class FightRoom extends Room {
 
   private onReady(client: Client, msg: { ready?: unknown }): void {
     const slot = this.slotOf(client.sessionId);
-    if (slot < 0 || this.phase !== 'lobby') return;
+    if (slot < 0 || (this.phase !== 'lobby' && this.phase !== 'pick')) return;
     this.seats[slot]!.ready = msg.ready === true;
+    // Sélection : le combat part dès que tout le monde a validé son combattant.
+    if (this.phase === 'pick' && this.seats.every((s) => s !== null && s.ready)) {
+      this.startMatch();
+      return;
+    }
     this.broadcastLobby();
   }
 
@@ -226,9 +233,14 @@ export class FightRoom extends Room {
     this.broadcastLobby();
   }
 
-  /** Hôte, après un combat : retour au salon. Les places redeviennent quatre, tout le monde doit se remettre prêt. */
+  /** Hôte, après un combat ou pendant la sélection : retour au salon. */
   private onBackToLobby(client: Client): void {
-    if (this.slotOf(client.sessionId) !== 0 || this.phase !== 'result') return;
+    if (this.slotOf(client.sessionId) !== 0 || (this.phase !== 'result' && this.phase !== 'pick')) return;
+    this.toLobby();
+  }
+
+  /** Retour au salon : les places redeviennent quatre, chacun doit revalider. */
+  private toLobby(): void {
     this.phase = 'lobby';
     this.world = null;
     while (this.seats.length < this.size) this.seats.push(null);
@@ -237,7 +249,10 @@ export class FightRoom extends Room {
     this.broadcastLobby();
   }
 
-  /** Seul l'hôte (slot 0) lance le combat : nombre de combattants valable pour le mode, tous prêts. */
+  /**
+   * Seul l'hôte (slot 0) lance la partie, avec un nombre de combattants valable pour le mode. Tout le monde passe
+   * alors à la sélection des combattants ; si tous étaient déjà prêts, le combat part directement.
+   */
   private onStart(client: Client): void {
     if (this.slotOf(client.sessionId) !== 0 || this.phase !== 'lobby') return;
     const taken = this.seats.filter((s): s is Seat => s !== null);
@@ -246,13 +261,14 @@ export class FightRoom extends Room {
       client.send('error', { type: 'error', message: `Ce mode se joue à ${counts.join(' ou ')} combattants (bots compris).` } satisfies ServerMessage);
       return;
     }
-    if (taken.some((s) => !s.ready)) {
-      client.send('error', { type: 'error', message: 'Tous les joueurs doivent être prêts.' } satisfies ServerMessage);
-      return;
-    }
     // Places tassées : les combattants occupent les emplacements 0..n-1 du monde.
     this.seats = taken;
-    this.startMatch();
+    if (taken.every((s) => s.ready)) {
+      this.startMatch();
+      return;
+    }
+    this.phase = 'pick';
+    this.broadcastLobby();
   }
 
   private onInput(client: Client, msg: { t?: unknown; i?: unknown }): void {
