@@ -855,3 +855,53 @@ Le message d'erreur exact du build Docker, et ce que tu veux décider pour le d�
 - **Postgres** : toujours SQLite sur volume. **Sauvegardes du volume** : non configurées.
 - **Rebuild du serveur avec le correctif Dockerfile** : non relancé (le serveur actuel tourne, il n'avait pas besoin du correctif).
 - Pas de déploiement automatique à chaque fusion (à lancer à la main ou via webhook Coolify).
+
+---
+
+## 22. Session 15 : refonte visuelle (look jeu vidéo, personnages, sélection, histoire)
+
+### Demande (simplifiée)
+
+Refaire l'esthétique du site en entier : fun, comme un vrai jeu vidéo. Vrai menu de sélection des personnages avec aperçu, mode histoire avec dialogues où l'on voit les personnages, personnages beaucoup plus travaillés.
+
+### Ce qui est fait
+
+- **Rendu des personnages** (`render/rig.ts`, réécrit) : cel-shading (3 paliers) + contour par coque inversée, corps modelé (profils de révolution pour torse et membres, muscles), mains avec phalanges et pouce, gants, chaussures à semelle, visages (yeux, sourcils, nez, bouche, oreilles), coiffures, tenues détaillées (gi à col croisé et ceinture nouée, short de boxe, sangles de fourrure, justaucorps de catch avec ceinture de champion, ninja avec sabre dans le dos, manteau à circuits), robots en blocs biseautés avec plaques, ouïes, noyau, accessoires (`extras` dans `visuals.ts` : cape, sac, canons, lames, crête, casque, cornes). Noms et positions des joints inchangés : `pose.ts` et toutes les animations marchent sans modification.
+- **`RigPlayer`** : joue les vrais coups d'un personnage hors combat (aperçu, menu, portraits).
+- **Portraits** (`render/portraits.ts`) : bustes rendus une fois par le même modèle 3D, mis en cache, en deux tailles. Utilisés dans la grille de sélection, les dialogues, l'écran VS et le HUD.
+- **Menu principal** : titre métallique, duel animé en fond (deux personnages tirés au hasard qui s'échangent des coups), entrées en grosses touches inclinées, navigation clavier.
+- **Sélection de personnage** (`ui/FighterSelect.tsx`) : aperçu 3D qui tourne (glisser pour pivoter), caractéristiques normalisées sur le roster (puissance, vitesse, allonge, endurance, calculées depuis les données réelles), liste de coups cliquables qui les jouent dans l'aperçu, grille de portraits, flèches + Entrée. Utilisé pour Combat, Entraînement (choix du niveau ou du mannequin) et Histoire (avancement par chapitre).
+- **Écran VS** avant chaque combat (combat rapide, histoire, arcade, robots), Entrée pour passer.
+- **Mode histoire** : dialogues façon roman visuel (portraits face à face, celui qui parle est mis en avant, boîte à nom, texte lettre à lettre, clic ou Entrée). Répliques par personnage (`story/text.ts` : `OPP_LINES`, `HERO_LINES`, `chapterScript`). Écrans de défaite et de fin refaits avec portraits.
+- **HUD de combat** : cartouches avec portrait, barres inclinées avec traînée de dégâts, horloge qui clignote sous 10 s, annonces « ROUND n » et « FIGHT ! », combo animé, aide masquable (H), débogage (F3, masqué par défaut).
+- Polices Russo One et Chakra Petch (Google Fonts), thème arcade partagé (`index.css`, `ui/kit.tsx`).
+- Écrans arcade, robots, compte et en ligne : gardent leur contenu, passent sur le nouveau fond.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm run typecheck` (3 paquets) | OK |
+| `npm run build` client | OK (three.js toujours chargé à la demande) |
+| Navigateur : menu avec duel animé, sélection 3D, grille de portraits, VS, combat avec nouveau HUD, dialogue d'histoire (héros et boss) | OK à l'écran |
+
+### Non testé ou limites (honnêteté)
+
+- Tests moteur et serveur non relancés : aucun code moteur ni serveur modifié.
+- Pas de mesure de FPS sur vrai GPU : le contour double le nombre de maillages ; à vérifier sur ta machine, et à baisser (option `outline` de `buildRig`) si besoin.
+- Les écrans arcade, robots, compte et en ligne n'ont pas été redessinés en détail, seulement posés sur le nouveau fond.
+- Pas de sons ni de musique. Pas de manette.
+- Histoire : les répliques sont une première version, à réécrire avec toi. Pas de réplique de victoire après le combat.
+- Mise en page vérifiée dans une fenêtre réduite seulement ; pas de test sur mobile.
+- Pas déployé : la branche est à relire avant fusion.
+
+### Tests à faire par toi
+
+1. Menu principal : flèches haut/bas, Entrée. Le duel en fond tourne-t-il fluidement ?
+2. COMBAT : choisis les personnages, essaie les coups dans l'aperçu, lance un combat. Les modèles te plaisent-ils (lesquels sont les moins réussis) ?
+3. HISTOIRE : lance un chapitre, lis le dialogue, perds un combat, gagne-en un.
+4. Dis-moi les FPS pendant un combat (F3).
+
+### Modifications à me renvoyer
+
+Quels personnages retravailler en priorité, ce qui manque au menu et à l'histoire, et si tu veux que je déploie sur Coolify.

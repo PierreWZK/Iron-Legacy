@@ -37,6 +37,8 @@ export interface VisualSpec {
   bareTorso: boolean;
   /** Corps articulé en blocs (robots). */
   boxy: boolean;
+  /** Accessoires : cape, backpack, cannons, bladeArms, hipBlades, crest, antenna, hornsRed, helm, spikes. */
+  extras?: string[];
 }
 
 function v(p: Partial<VisualSpec> & Pick<VisualSpec, 'skin' | 'suit' | 'trim' | 'accent' | 'head' | 'outfit'>): VisualSpec {
@@ -80,6 +82,7 @@ export const VISUALS: Record<string, VisualSpec> = {
     head: 'robot', outfit: 'robot', skin: 0x8f98a3, suit: 0x3b4450, trim: 0xc8d0d8, accent: 0x34e0ff,
     glove: 0x2a3038, boot: 0x2a3038, boxy: true, longSleeves: true, longPants: true,
     height: 1.05, shoulders: 1.2, torso: 1.2, limbs: 1.15,
+    extras: ['antenna'],
   }),
   shin: v({
     head: 'ninja', outfit: 'ninja', skin: 0xc9a07a, suit: 0x16181d, trim: 0x2a2d36, accent: 0xb02a3a,
@@ -103,31 +106,37 @@ export const VISUALS: Record<string, VisualSpec> = {
     head: 'robot', outfit: 'robot', skin: 0xb8c0c8, suit: 0x3a4450, trim: 0xd8e0e8, accent: 0x34e0ff,
     glove: 0x2a3038, boot: 0x2a3038, boxy: true, longSleeves: true, longPants: true,
     height: 0.95, shoulders: 0.9, torso: 0.9, limbs: 0.95,
+    extras: ['antenna'],
   }),
   guardian: v({
     head: 'robot', outfit: 'robot', skin: 0x7a8490, suit: 0x2a3440, trim: 0x9aa4ae, accent: 0xff8a2a,
     glove: 0x2a3038, boot: 0x2a3038, boxy: true, longSleeves: true, longPants: true,
     height: 1.12, shoulders: 1.5, torso: 1.45, limbs: 1.3,
+    extras: ['helm', 'spikes'],
   }),
   assassin: v({
     head: 'robot', outfit: 'robot', skin: 0x5a1a1a, suit: 0x1a1214, trim: 0x2a1e22, accent: 0xff2a3a,
     glove: 0x1a1214, boot: 0x1a1214, boxy: true, longSleeves: true, longPants: true,
     height: 1.0, shoulders: 0.95, torso: 0.92, limbs: 0.95,
+    extras: ['bladeArms', 'hornsRed', 'hipBlades'],
   }),
   heavy: v({
     head: 'robot', outfit: 'robot', skin: 0x5a5f68, suit: 0x3a3228, trim: 0x8a7a5a, accent: 0xffc23a,
     glove: 0x2a2620, boot: 0x2a2620, boxy: true, longSleeves: true, longPants: true,
     height: 1.3, shoulders: 1.6, torso: 1.5, limbs: 1.4,
+    extras: ['helm', 'cannons'],
   }),
   elite: v({
     head: 'robot', outfit: 'robot', skin: 0x9a8a5a, suit: 0x3a3424, trim: 0xc8b87a, accent: 0xffe08a,
     glove: 0x3a3424, boot: 0x3a3424, boxy: true, longSleeves: true, longPants: true,
     height: 1.05, shoulders: 1.2, torso: 1.15, limbs: 1.1,
+    extras: ['crest', 'cape'],
   }),
   titan: v({
     head: 'titan', outfit: 'robot', skin: 0x5a5f68, suit: 0x2a2f36, trim: 0x8a929c, accent: 0xff3a2a,
     glove: 0x1c2026, boot: 0x1c2026, boxy: true, longSleeves: true, longPants: true, height: 1.45,
     shoulders: 1.5, torso: 1.5, limbs: 1.4,
+    extras: ['backpack', 'cannons', 'spikes'],
   }),
 };
 

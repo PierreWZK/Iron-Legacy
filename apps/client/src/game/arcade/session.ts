@@ -3,7 +3,7 @@ import {
   aiLevelFor, ARCADE_STAGES, getCharacter, scoreFight, TICK_RATE, type Difficulty,
 } from '@iron/engine';
 import { runtime } from '../runtime';
-import { backToMenu, useApp } from '../store';
+import { backToMenu, toFight, useApp } from '../store';
 import { loadRanking, saveRanking, type RankEntry } from './ranking';
 
 export type ArcadePhase = 'select' | 'fight' | 'between' | 'lost' | 'ending';
@@ -55,7 +55,7 @@ function launchStage(): void {
   const s = ARCADE_STAGES[stage]!;
   runtime.start({ p1: fighter, p2: s.opponent, mode: 'ai', level: aiLevelFor(stage, difficulty), dummy: 'idle' });
   useArcade.setState({ active: true, phase: 'fight' });
-  useApp.setState((st) => ({ screen: 'fight', runId: st.runId + 1 }));
+  toFight('ARCADE');
 }
 
 /** Démarre une nouvelle partie d'arcade à la première étape. */

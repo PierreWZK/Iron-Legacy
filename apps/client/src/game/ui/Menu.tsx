@@ -1,147 +1,100 @@
-import { CHARACTER_IDS, getCharacter } from '@iron/engine';
-import type { ReactNode } from 'react';
-import { fr, t } from '../../i18n/fr';
-import { DUMMY_MODES, type DummyMode, type MatchConfig } from '../runtime';
-import { startFight, useApp } from '../store';
+import { CHARACTER_IDS } from '@iron/engine';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { selectOpen } from '../select';
 import { arcadeOpen } from '../arcade/session';
 import { storyOpen } from '../story/session';
 import { robotsOpen } from '../robots/session';
 import { onlineOpen } from '../online/session';
-import { useProgress } from '../progress';
+import { useApp } from '../store';
+import { Screen } from './kit';
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-xs tracking-[0.35em] text-iron-cyan">{title}</h2>
-      <div className="flex flex-wrap gap-3">{children}</div>
-    </section>
-  );
+const MenuDiorama = lazy(() => import('../render/MenuDiorama'));
+
+interface Item {
+  label: string;
+  hint: string;
+  run: () => void;
+  accent: string;
 }
 
-function Choice({ active, onClick, children, disabled = false }: { active: boolean; onClick: () => void; children: ReactNode; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      className={`min-w-44 border px-4 py-3 text-left transition-colors ${
-        disabled ? 'cursor-not-allowed border-white/10 bg-black/60 text-white/30'
-          : active ? 'border-iron-amber bg-iron-amber/15 text-iron-amber' : 'border-white/20 bg-black/40 text-white/80 hover:border-white/50'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** Menu principal : mode, personnages, niveau d'IA, mannequin. Toute option est reliée à la sim. */
+/** Menu principal : titre, duel animé en fond, entrées de mode en grosses touches arcade. */
 export function Menu() {
-  const cfg = useApp((s) => s.config);
-  const unlocked = useProgress((s) => s.unlocked);
-  const patch = (p: Partial<MatchConfig>) => useApp.setState((s) => ({ config: { ...s.config, ...p } }));
+  const items: Item[] = useMemo(() => [
+    { label: 'HISTOIRE', hint: '8 chapitres, dialogues, boss final', run: storyOpen, accent: '#ffb020' },
+    { label: 'COMBAT', hint: 'Duel rapide contre l\'IA', run: () => selectOpen('versus'), accent: '#ff4a3a' },
+    { label: 'ARCADE', hint: 'Enchaîne les adversaires', run: arcadeOpen, accent: '#34e0ff' },
+    { label: 'EN LIGNE', hint: 'Duel, dernier debout, 2 contre 2', run: onlineOpen, accent: '#34e0ff' },
+    { label: 'ROBOTS', hint: 'Survie et défis', run: robotsOpen, accent: '#ffb020' },
+    { label: 'ENTRAÎNEMENT', hint: 'Teste tes coups sur un mannequin', run: () => selectOpen('training'), accent: '#7dff9a' },
+    { label: 'COMPTE', hint: 'Sauvegarde et classement', run: () => useApp.setState({ screen: 'account' }), accent: '#c9d4e3' },
+  ], []);
+  const [sel, setSel] = useState(0);
+  const pair = useMemo(() => {
+    const i = Math.floor(Math.random() * CHARACTER_IDS.length);
+    return [CHARACTER_IDS[i]!, CHARACTER_IDS[(i + 5) % CHARACTER_IDS.length]!] as const;
+  }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') setSel((s) => (s + 1) % items.length);
+      else if (e.key === 'ArrowUp') setSel((s) => (s - 1 + items.length) % items.length);
+      else if (e.key === 'Enter') items[sel]!.run();
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [items, sel]);
+
+  const cur = items[sel]!;
   return (
-    <main className="relative mx-auto flex h-full max-w-5xl flex-col gap-7 overflow-y-auto px-4 py-8 font-display text-white sm:px-6">
-      <header>
-        <h1 className="text-4xl tracking-[0.3em] text-iron-amber">{t.title}</h1>
-        <p className="mt-2 text-xs tracking-widest text-white/50">{t.subtitle}</p>
-      </header>
-
-      <Section title={fr.menu.mode}>
-        <Choice active={cfg.mode === 'ai'} onClick={() => patch({ mode: 'ai' })}>{fr.menu.ai}</Choice>
-        <Choice active={cfg.mode === 'training'} onClick={() => patch({ mode: 'training' })}>{fr.menu.training}</Choice>
-      </Section>
-
-      <Section title={fr.menu.fighter}>
-        {CHARACTER_IDS.map((id) => {
-          const c = getCharacter(id);
-          const locked = !unlocked.includes(id);
-          return (
-            <Choice key={id} active={cfg.p1 === id} disabled={locked} onClick={() => patch({ p1: id })}>
-              <div className="text-lg tracking-widest">{locked ? '???' : c.name}</div>
-              <div className="text-xs text-white/60">{locked ? 'Verrouillé : terminer une histoire' : c.epithet}</div>
-              {!locked && <div className="mt-1 text-[11px] text-white/40">{c.style}</div>}
-            </Choice>
-          );
-        })}
-      </Section>
-
-      {cfg.mode === 'ai' ? (
-        <>
-          <Section title={fr.menu.opponent}>
-            {CHARACTER_IDS.map((id) => {
-              const c = getCharacter(id);
-              return (
-                <Choice key={id} active={cfg.p2 === id} onClick={() => patch({ p2: id })}>
-                  <div className="text-lg tracking-widest">{c.name}</div>
-                  <div className="text-xs text-white/60">{c.epithet}</div>
-                </Choice>
-              );
-            })}
-          </Section>
-          <Section title={fr.menu.level}>
-            {[1, 2, 3, 4, 5].map((lvl) => (
-              <Choice key={lvl} active={cfg.level === lvl} onClick={() => patch({ level: lvl })}>
-                Niveau {lvl}
-              </Choice>
-            ))}
-          </Section>
-        </>
-      ) : (
-        <Section title={fr.menu.dummy}>
-          {DUMMY_MODES.map((m: DummyMode) => (
-            <Choice key={m} active={cfg.dummy === m} onClick={() => patch({ dummy: m })}>
-              {fr.menu.dummyModes[m]}
-            </Choice>
-          ))}
-        </Section>
-      )}
-
-      <div>
-        <button
-          type="button"
-          onClick={startFight}
-          className="border border-iron-amber bg-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-black hover:brightness-110"
-        >
-          {fr.menu.start}
-        </button>
-        <button
-          type="button"
-          onClick={arcadeOpen}
-          className="ml-4 border border-iron-cyan px-10 py-4 text-lg tracking-[0.3em] text-iron-cyan hover:bg-iron-cyan/10"
-        >
-          ARCADE
-        </button>
-        <button
-          type="button"
-          onClick={storyOpen}
-          className="ml-4 border border-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-iron-amber hover:bg-iron-amber/10"
-        >
-          HISTOIRE
-        </button>
-        <button
-          type="button"
-          onClick={robotsOpen}
-          className="ml-4 border border-iron-amber px-10 py-4 text-lg tracking-[0.3em] text-iron-amber hover:bg-iron-amber/10"
-        >
-          ROBOTS
-        </button>
-        <button
-          type="button"
-          onClick={onlineOpen}
-          className="ml-4 border border-iron-cyan px-10 py-4 text-lg tracking-[0.3em] text-iron-cyan hover:bg-iron-cyan/10"
-        >
-          EN LIGNE
-        </button>
-        <button
-          type="button"
-          onClick={() => useApp.setState({ screen: 'account' })}
-          className="ml-4 border border-white/40 px-10 py-4 text-lg tracking-[0.3em] text-white/80 hover:bg-white/5"
-        >
-          COMPTE
-        </button>
+    <Screen accent={cur.accent}>
+      <div className="absolute inset-0 opacity-90">
+        <Suspense fallback={null}>
+          <MenuDiorama a={pair[0]} b={pair[1]} />
+        </Suspense>
       </div>
-    </main>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent" />
+
+      <main className="relative flex h-full flex-col justify-between px-8 py-8 sm:px-14">
+        <header className="anim-left">
+          <div className="font-display text-6xl italic leading-[0.9] tracking-wide logo-text sm:text-8xl">IRON<br />LEGACY</div>
+          <div className="mt-3 text-xs tracking-[0.5em] text-white/60">COMBAT 3D · HELIX · TITAN-01</div>
+        </header>
+
+        <nav aria-label="Modes de jeu" className="flex flex-col items-start gap-2.5">
+          {items.map((it, i) => {
+            const on = i === sel;
+            return (
+              <button
+                key={it.label}
+                type="button"
+                onClick={it.run}
+                onMouseEnter={() => setSel(i)}
+                onFocus={() => setSel(i)}
+                className="anim-left group relative -skew-x-12 text-left transition-all duration-150"
+                style={{ animationDelay: `${i * 55}ms`, transform: on ? 'translateX(18px) skewX(-12deg)' : undefined }}
+              >
+                <span
+                  className="block border-l-8 px-6 py-2 font-display text-2xl tracking-[0.12em] transition-colors sm:text-3xl"
+                  style={{
+                    borderColor: it.accent,
+                    background: on ? it.accent : 'rgba(0,0,0,0.55)',
+                    color: on ? '#000' : '#fff',
+                    boxShadow: on ? `0 0 28px -6px ${it.accent}` : undefined,
+                  }}
+                >
+                  <span className="inline-block skew-x-12">{it.label}</span>
+                </span>
+              </button>
+            );
+          })}
+          <p className="mt-2 h-5 pl-2 text-sm tracking-widest" style={{ color: cur.accent }}>{cur.hint}</p>
+        </nav>
+
+        <footer className="text-[10px] tracking-[0.3em] text-white/40">↑ ↓ POUR CHOISIR · ENTRÉE POUR VALIDER</footer>
+      </main>
+    </Screen>
   );
 }

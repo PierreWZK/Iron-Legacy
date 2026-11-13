@@ -3,7 +3,7 @@ import {
   checkChallenge, getChallenge, getCharacter, healBetweenWaves, waveSetup,
 } from '@iron/engine';
 import { runtime } from '../runtime';
-import { backToMenu, useApp } from '../store';
+import { backToMenu, toFight, useApp } from '../store';
 import { useProgress } from '../progress';
 
 export type RobotPhase = 'menu' | 'fight' | 'between' | 'over' | 'challenge';
@@ -89,7 +89,7 @@ function launchWave(): void {
     maxHealth: [heroMax, robotMax], health: [st.playerHealth, robotMax],
   });
   useRobots.setState({ active: true, phase: 'fight', mode: 'survival' });
-  useApp.setState((s) => ({ screen: 'fight', runId: s.runId + 1 }));
+  toFight('ROBOTS');
 }
 
 /** Vagues : repart de la première vague avec la pleine vie du héros. */
@@ -111,7 +111,7 @@ export function robotsChallengeStart(id: string): void {
   const st = useRobots.getState();
   runtime.start({ p1: st.hero, p2: def.robot, mode: 'ai', level: def.level, dummy: 'idle' });
   useRobots.setState({ active: true, phase: 'fight', mode: 'challenge', challengeId: id, result: null });
-  useApp.setState((s) => ({ screen: 'fight', runId: s.runId + 1 }));
+  toFight('ROBOTS');
 }
 
 /** Retour à l'écran de choix après un défi ou une fin de vagues. */
