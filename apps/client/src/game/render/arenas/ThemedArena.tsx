@@ -1,7 +1,9 @@
 import { ARENA_RADIUS } from '@iron/engine';
-import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { Particles, SkyDome, Stars } from './atmosphere';
+import { LOOKS } from './looks';
 import { makeProp, mulberry32 } from './scenery';
 import type { ArenaId, ArenaSpec } from './specs';
 
@@ -42,6 +44,20 @@ function Rain() {
 
 /** Décor générique : sol, anneau lumineux, lumières, couches d'éléments posés en couronne (tout en code). */
 export function ThemedArena({ id, spec }: { id: ArenaId; spec: ArenaSpec }) {
+  const look = LOOKS[id as keyof typeof LOOKS];
+  const gl = useThree((t) => t.gl);
+  useEffect(() => {
+    const before = gl.toneMappingExposure;
+    gl.toneMappingExposure = look?.exposure ?? 1;
+    return () => {
+      gl.toneMappingExposure = before;
+    };
+  }, [gl, look]);
+  const ambient = look?.ambient ?? spec.ambient;
+  const sun = look?.sun ?? spec.sun;
+  const boost = look?.pointBoost ?? 1;
+  // Brouillard teinté comme l'horizon : il fond le décor dans le ciel au lieu de le noircir.
+  const fogColor = look ? '#' + new THREE.Color(look.horizon).lerp(new THREE.Color(look.skyTop), 0.45).getHexString() : spec.sky;
   const scenery = useMemo(() => {
     const rnd = mulberry32(id.length * 7919 + id.charCodeAt(0) * 31 + id.charCodeAt(1));
     const group = new THREE.Group();
@@ -62,12 +78,17 @@ export function ThemedArena({ id, spec }: { id: ArenaId; spec: ArenaSpec }) {
   return (
     <group>
       <color attach="background" args={[spec.sky]} />
-      <fog attach="fog" args={[spec.sky, spec.fog[0], spec.fog[1]]} />
-      <ambientLight intensity={spec.ambient[1]} color={spec.ambient[0]} />
+      <fog attach="fog" args={[fogColor, spec.fog[0], spec.fog[1]]} />
+      {look && <SkyDome top={look.skyTop} horizon={look.horizon} />}
+      {look?.stars && <Stars />}
+      {look && <hemisphereLight args={[look.hemi[0], look.hemi[1], look.hemi[2]]} />}
+      {look && <directionalLight position={[-6, 5, -9]} intensity={look.rim[1]} color={look.rim[0]} />}
+      <pointLight position={[0, 6.5, 0]} intensity={26} distance={16} color={sun[0]} />
+      <ambientLight intensity={ambient[1]} color={ambient[0]} />
       <directionalLight
         position={[5, 12, 6]}
-        intensity={spec.sun[1]}
-        color={spec.sun[0]}
+        intensity={sun[1]}
+        color={sun[0]}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-10}
@@ -77,7 +98,7 @@ export function ThemedArena({ id, spec }: { id: ArenaId; spec: ArenaSpec }) {
         shadow-bias={-0.0004}
       />
       {(spec.points ?? []).slice(0, 3).map((p, i) => (
-        <pointLight key={i} position={p.pos} intensity={p.intensity} distance={18} color={p.color} />
+        <pointLight key={i} position={p.pos} intensity={p.intensity * boost} distance={20} color={p.color} />
       ))}
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <circleGeometry args={[80, 48]} />
@@ -96,6 +117,7 @@ export function ThemedArena({ id, spec }: { id: ArenaId; spec: ArenaSpec }) {
       </mesh>
       <primitive object={scenery} />
       {spec.rain && <Rain />}
+      {look?.particles && <Particles kind={look.particles.kind} color={look.particles.color} />}
     </group>
   );
 }

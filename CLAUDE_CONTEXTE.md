@@ -1000,3 +1000,9 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - **Victoire de manche, victoire de partie, défaite** : `render/pose.ts` (`endPose`). Victoire de manche = poing levé qui pompe ; victoire de partie = deux bras levés, sautillement ; défaite = tête basse, genoux pliés, à genoux. Tempo et ampleur viennent du style du personnage (`ANIM_STYLES`).
 - Limite : même forme de pose pour tous, seul le tempo et l'ampleur changent. Pas de geste unique par personnage.
 - Vérifié à l'écran par forçage d'état (KO, `matchWinner`) : « VICTOIRE » avec bras levés, « DÉFAITE » avec corps affaissé. Pas vérifié en mouvement réel.
+
+### Session 18 suite : cartes
+
+- Tous les décors ont une ambiance (`render/arenas/looks.ts`, `atmosphere.tsx`) : ciel dégradé (`SkyDome`), étoiles, lumière hémisphérique, contre-jour coloré, lumière centrale sur les combattants, brouillard teinté comme l'horizon, exposition par décor, particules (lucioles, feuilles, pétales, neige, braises, poussière, étincelles). Toit de Shin, rue, labo, forteresse, usine éclaircis ; immeubles plus clairs avec fenêtres lumineuses. Dojo (`render/Arena.tsx`) : même ciel et mêmes lumières.
+- Vérifié à l'écran : toit de Shin (ciel étoilé, immeubles bleus lisibles), dojo (coucher de soleil). Pas relu à l'écran : les dix autres décors (forêt, automne, canyon, neige, toundra, labo, forteresse, rue, usine, temple, désert).
+- Pas de nouveaux éléments de décor (formes) : seulement lumière, ciel et particules.
