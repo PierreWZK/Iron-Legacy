@@ -12,10 +12,11 @@ import { useStory } from '../story/session';
 import { toggleHelp, useHelp } from './help';
 import { SlantButton } from './kit';
 import { SettingsPanel } from './Settings';
+import { ComboList } from './ComboList';
 
 interface PauseState {
   open: boolean;
-  view: 'menu' | 'keys' | 'settings';
+  view: 'menu' | 'keys' | 'settings' | 'combos';
   /** Emplacement de touche en attente d'une touche du clavier. */
   capturing: { action: Action; slot: number } | null;
 }
@@ -129,6 +130,11 @@ export function PauseMenu() {
       <div className="anim-pop border-l-8 border-iron-amber bg-black/85 px-8 py-6 shadow-[0_0_60px_-10px_#ffb020]">
         {view === 'keys' ? (
           <KeysView />
+        ) : view === 'combos' ? (
+          <div className="space-y-3">
+            <ComboList characterId={runtime.online ? runtime.heroes[0]! : runtime.config.p1} />
+            <SlantButton small onClick={() => usePause.setState({ view: 'menu' })}>RETOUR</SlantButton>
+          </div>
         ) : view === 'settings' ? (
           <div className="space-y-4">
             <h2 className="font-display text-2xl italic tracking-widest text-white">RÉGLAGES</h2>
@@ -140,6 +146,7 @@ export function PauseMenu() {
             <h2 className="font-display text-4xl italic tracking-widest text-iron-amber">{online ? 'MENU' : 'PAUSE'}</h2>
             {online && <p className="max-w-64 text-xs text-white/55">En ligne : le combat continue pendant que ce menu est ouvert.</p>}
             <SlantButton primary onClick={closePause}>REPRENDRE</SlantButton>
+            <SlantButton onClick={() => usePause.setState({ view: 'combos' })}>COMBOS</SlantButton>
             <SlantButton onClick={() => usePause.setState({ view: 'keys' })}>COMMANDES CLAVIER</SlantButton>
             <SlantButton onClick={() => usePause.setState({ view: 'settings' })}>RÉGLAGES TACTILES</SlantButton>
             <SlantButton onClick={toggleHelp}>AIDE : {help ? 'AFFICHÉE' : 'MASQUÉE'}</SlantButton>

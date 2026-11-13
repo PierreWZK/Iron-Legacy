@@ -38,9 +38,9 @@ export function helpSections(b: Bindings, characterId: string): HelpSection[] {
   const moves = getCharacter(characterId).moves;
   const combo = (btn: 'lp' | 'rp' | 'lk' | 'rk'): string => {
     const key = k(btn);
-    const second = moves[`${btn}2` as MoveId].label;
-    const third = moves[`${btn}3` as MoveId].label;
-    return `${key} ${key} ${key} : ${moves[OPENERS[btn]].label} › ${second} › ${third}`;
+    const second = moves[`${btn}2` as MoveId]!.label;
+    const third = moves[`${btn}3` as MoveId]!.label;
+    return `${key} ${key} ${key} : ${moves[OPENERS[btn]]!.label} › ${second} › ${third}`;
   };
   return [
     {

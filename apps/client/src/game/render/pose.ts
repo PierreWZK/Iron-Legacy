@@ -182,7 +182,7 @@ const CROUCH_LEVEL: Partial<Record<MoveId, number>> = {
 
 function attackPose(id: MoveId, m: MoveDef, frame: number): Pose {
   const e = extension(m, frame);
-  const c = CROUCH_LEVEL[id] ?? 0;
+  const c = m.crouch ?? CROUCH_LEVEL[id] ?? 0;
   const base = legsBlend(c);
   const g = guard(0);
   const mk = (rot: RotMap, o: { hipsY?: number; bodyYaw?: number } = {}): Pose =>
@@ -258,6 +258,14 @@ function attackPose(id: MoveId, m: MoveDef, frame: number): Pose {
       return mk({ ...g, thighL: [lerp(-0.8, -1.5, e), 0, 0], shinL: [lerp(1.6, 0.05, e), 0, 0], thighR: [-0.5, 0, 0], shinR: [1.0, 0, 0], spine: [-0.1 * e, 0, 0] });
     case 'airRound':
       return mk({ ...g, thighR: [lerp(-0.3, -1.4, e), 0, 0], shinR: [lerp(1.4, 0.05, e), 0, 0], thighL: [-0.8, 0, 0], shinL: [1.0, 0, 0], spine: [lerp(0.05, -0.12, e), 0, 0] }, { bodyYaw: lerp(0, -0.9, e) });
+    case 'roll': {
+      // Roulade offensive : galbe en avant, le corps fait un tour complet en passant sur l'adversaire.
+      const q = clamp01(frame / (m.startup + m.active + 3));
+      return pose({
+        upperArmL: [-2.2, 0, 0.3], forearmL: [-1.9, 0, 0], upperArmR: [-2.2, 0, -0.3], forearmR: [-1.9, 0, 0],
+        thighL: [-1.5, 0, 0], shinL: [1.9, 0, 0], thighR: [-1.5, 0, 0], shinR: [1.9, 0, 0], spine: [0.8, 0, 0],
+      }, { root: { centerY: 0.55 + 0.1 * Math.sin(q * Math.PI), rotX: Math.PI * 2 * sm(0.05, 0.95, q), rotZ: 0 } });
+    }
     default:
       return throwAttackerPose(m.limb, extensionToProgress(m, frame));
   }
@@ -436,6 +444,8 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
       return jumpPose(f.vel.y);
     case 'dodge':
       return dodgePose(f.sub, f.moveFrame);
+    case 'dash':
+      return f.sub === 'fwd' ? cycle(t * 14, 0.8, 0.4, 0.4, st) : cycle(-t * 12, 0.5, -0.1, 0.2, st);
     case 'parry':
       return pose({
         upperArmL: [-1.2, 0, 0.3], forearmL: [-1.0, 0, 0], upperArmR: [-1.2, 0, -0.3], forearmR: [-1.0, 0, 0], ...STANCE, spine: [0.1, 0, 0],

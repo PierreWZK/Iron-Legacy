@@ -1,8 +1,8 @@
 import { BASE_MOVES } from './baseMoves';
-import type { CharacterDef, MoveDef, MoveId } from './types';
+import type { BaseMoveId, CharacterDef, MoveDef } from './types';
 
 /** Coup dérivé de la table de référence, avec un libellé propre à la créature. */
-function mv(id: MoveId, patch: Partial<MoveDef>): MoveDef {
+function mv(id: BaseMoveId, patch: Partial<MoveDef>): MoveDef {
   return { ...BASE_MOVES[id], ...patch };
 }
 

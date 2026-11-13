@@ -38,6 +38,9 @@ function Stick() {
   const pad = useRef<HTMLDivElement>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const active = useRef<Set<Action>>(new Set());
+  const lastDir = useRef<'left' | 'right' | null>(null);
+  const lastTap = useRef(0);
+  const boost = useRef<'left' | 'right' | null>(null);
 
   const apply = (next: Set<Action>) => {
     for (const a of active.current) if (!next.has(a)) touchUp(a);
@@ -58,6 +61,16 @@ function Stick() {
     const next = new Set<Action>();
     if (dx > DEAD) next.add('screenRight');
     if (dx < -DEAD) next.add('screenLeft');
+    // Double geste vers l'avant / l'arrière : sprint (ou pas arrière) maintenu tant que la croix reste dans ce sens.
+    const now = performance.now();
+    const dir = dx > DEAD ? 'right' : dx < -DEAD ? 'left' : null;
+    if (dir && dir !== lastDir.current) {
+      if (now - lastTap.current < 320) boost.current = dir;
+      lastTap.current = now;
+    }
+    if (!dir) boost.current = null;
+    lastDir.current = dir;
+    if (boost.current) next.add('shift');
     if (dy < -DEAD) next.add('jump');
     if (dy > DEAD) next.add('crouch');
     apply(next);
@@ -65,6 +78,8 @@ function Stick() {
   const end = () => {
     apply(new Set());
     setKnob({ x: 0, y: 0 });
+    lastDir.current = null;
+    boost.current = null;
   };
 
   return (

@@ -7,9 +7,9 @@ import type { InputFrame } from './input';
 export type ActionState =
   | 'idle' | 'walkFwd' | 'walkBack' | 'sideL' | 'sideR' | 'runFwd'
   | 'crouch' | 'crouchBlock' | 'jump' | 'block' | 'dodge' | 'parry'
-  | 'attack' | 'throw' | 'hitstun' | 'knockdown' | 'getup' | 'thrown' | 'victory';
+  | 'dash' | 'attack' | 'throw' | 'hitstun' | 'knockdown' | 'getup' | 'thrown' | 'victory';
 
-export type DodgeSub = 'back' | 'left' | 'right' | null;
+export type DodgeSub = 'back' | 'left' | 'right' | 'fwd' | null;
 
 export interface Vec3 {
   x: number;
@@ -53,6 +53,16 @@ export interface Fighter {
   /** Boutons d'attaque pressés récemment (mémorisés quelques ticks) et leur ancienneté en ticks. */
   buffer: number;
   bufferAge: number;
+  /** Derniers ticks où avant / arrière ont été pressés (double appui = pas lancé en avant ou en arrière). */
+  tapFwd: number;
+  tapBack: number;
+  /** Double appui détecté : 1 avant, 2 arrière (0 = aucun), et tick où il a été détecté. */
+  dashReq: number;
+  dashReqTick: number;
+  /** Coup depuis le sol demandé pendant la chute : 1 pied gauche, 2 pied droit. */
+  wake: number;
+  /** Entrée au moment du dernier appui d'attaque (la direction d'un coup mémorisé). */
+  bufferIn: InputFrame;
   /** Élan de marche (0 à 1) : la vitesse monte en quelques ticks au lieu d'être instantanée. */
   pace: number;
   /** Identifiant du combattant qui m'a projeté (séquence de projection en cours), sinon null. */
@@ -154,6 +164,12 @@ function makeFighter(id: number, team: number, characterId: string): Fighter {
     lastPress: { lp: -999, rp: -999, lk: -999, rk: -999 },
     buffer: 0,
     bufferAge: 0,
+    bufferIn: 0,
+    tapFwd: -999,
+    tapBack: -999,
+    dashReq: 0,
+    dashReqTick: -999,
+    wake: 0,
     pace: 0,
     thrownBy: null,
     crouched: false,
@@ -201,6 +217,8 @@ export function beginRound(w: World, intro: boolean, distance = START_DISTANCE):
     f.comboTimer = 0;
     f.buffer = 0;
     f.bufferAge = 0;
+    f.wake = 0;
+    f.dashReq = 0;
     f.pace = 0;
     f.crouched = false;
     f.thrownBy = null;

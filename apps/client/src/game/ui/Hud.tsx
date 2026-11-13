@@ -13,6 +13,7 @@ import { ARCADE_STAGES, getChallenge, getCharacter, storyOpponents, waveSetup } 
 import { accentOf, Portrait } from './Portrait';
 import { SlantButton } from './kit';
 import { TouchControls } from './TouchControls';
+import { KeyPad } from './KeyPad';
 import { useTouchEnabled } from '../input/touch';
 
 const useArenaRobot = (wave: number): string => waveSetup(wave).robot;
@@ -213,6 +214,7 @@ export function Hud() {
       {h.infinite && mode === 'training' && <Tag color="#34e0ff">{t.hud.infinite}</Tag>}
 
       <TouchControls />
+      {!touch && <KeyPad />}
 
       <div className={`pointer-events-none absolute bottom-3 left-4 ${touch ? 'hidden' : 'flex'} max-w-[min(46rem,92vw)] flex-col items-start gap-2`}>
         {help && (

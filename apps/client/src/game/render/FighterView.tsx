@@ -21,7 +21,7 @@ export function FighterView({ index, characterId }: { index: number; characterId
     const a = runtime.alpha;
     const k = 1 - Math.exp(-delta * 22);
     // Coups, réactions et esquives : le corps suit la pose presque sans retard, sinon les coups rapides s'estompent.
-    const fast = cur.action === 'attack' || cur.action === 'hitstun' || cur.action === 'parry' || cur.action === 'dodge';
+    const fast = cur.action === 'attack' || cur.action === 'hitstun' || cur.action === 'parry' || cur.action === 'dodge' || cur.action === 'dash';
     const kb = 1 - Math.exp(-delta * (fast ? 75 : 26));
     s.t += delta;
 

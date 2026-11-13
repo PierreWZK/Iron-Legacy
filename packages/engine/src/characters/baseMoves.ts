@@ -1,4 +1,4 @@
-import type { ChainButton, Height, Limb, MoveDef, MoveId } from './types';
+import type { BaseMoveId, ChainButton, Height, Limb, MoveDef, MoveId } from './types';
 
 /** Combos : le bouton pressé choisit le 2e (puis le 3e) coup de l'enchaînement. */
 export const STEP2: Partial<Record<ChainButton, MoveId>> = { lp: 'lp2', rp: 'rp2', lk: 'lk2', rk: 'rk2' };
@@ -18,7 +18,7 @@ export function mv(
 }
 
 /** Table de coups de référence (style karaté). Les autres personnages la surchargent partiellement. */
-export const BASE_MOVES: Record<MoveId, MoveDef> = {
+export const BASE_MOVES: Record<BaseMoveId, MoveDef> = {
   // Debout
   jab: mv('Jab', 'punchL', 'high', 4, 2, 8, 4, 13, 9, 0.4, 1.0, { cancel: true, string: true, chain: STEP2 }),
   cross: mv('Direct', 'punchR', 'mid', 7, 3, 13, 8, 16, 11, 0.8, 1.1, { cancel: true, string: true, chain: STEP2 }),
@@ -65,4 +65,19 @@ export const BASE_MOVES: Record<MoveId, MoveDef> = {
   lk3: mv('Latéral final', 'sideKick', 'mid', 7, 3, 18, 8, 22, 14, 1.2, 1.4),
   rk2: mv('Circulaire enchaîné', 'kickL', 'high', 6, 3, 13, 8, 19, 13, 0.8, 1.3, { chain: STEP3, radius: 0.36 }),
   rk3: mv('Tournant final', 'spinKick', 'high', 8, 4, 24, 14, 26, 16, 1.3, 1.4, { knockdown: true, radius: 0.4 }),
+  // Après un double appui avant : frappe lancée, roulade offensive, coup de pied lancé, projection
+  dashLP: mv('Frappe lancée', 'lunge', 'mid', 7, 3, 15, 9, 18, 11, 1.0, 1.25, { lunge: 4.5, cancel: true }),
+  dashRP: mv('Roulade', 'roll', 'mid', 8, 7, 19, 12, 20, 14, 1.3, 1.0, { lunge: 5, radius: 0.4 }),
+  dashLK: mv('Coup de pied lancé', 'flying', 'mid', 9, 4, 18, 11, 19, 13, 1.2, 1.3, { lunge: 4.5 }),
+  dashRK: mv('Projection lancée', 'throw', 'mid', 6, 2, 56, 17, 0, 0, 0, 0.9, { radius: 0.45, knockdown: true, throw: true, sequence: 44, landing: 1.4, lunge: 3 }),
+  // Depuis le sol
+  wakeKick: mv('Coup de pied relevé', 'dragon', 'mid', 6, 3, 16, 8, 18, 10, 1.0, 1.1, { launch: 3 }),
+  wakeSweep: mv('Balayage au sol', 'slide', 'low', 8, 3, 18, 7, 18, 12, 0.8, 1.3, { knockdown: true }),
 };
+
+/** Niveau d'accroupi de la pose de chaque coup bas. */
+const CROUCH: Partial<Record<BaseMoveId, number>> = {
+  lowJab: 1, uppercut: 1, lowKick: 1, sweep: 1, hookPunch: 0.6, risingHook: 0.6, slideKick: 0.8, dragonKick: 0.4,
+  wakeKick: 0.5, wakeSweep: 1,
+};
+for (const [id, c] of Object.entries(CROUCH)) BASE_MOVES[id as BaseMoveId].crouch = c;

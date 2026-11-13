@@ -972,3 +972,25 @@ Typecheck et build OK. Émulation 812x375 : menu, combat avec commandes, tap sur
 ### Non vérifié
 
 Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos au doigt). Écrans de sélection, arcade, compte, en ligne : seulement lisibles, pas adaptés au téléphone. Pas de plein écran. L'aide texte est masquée sur tactile.
+
+---
+
+## 25. Session 18 : combos étendus, double appui, indicateur de touches (en cours)
+
+### Fait
+
+- **Combos** (`engine/characters/combos.ts`) : 20 par personnage (7 faciles 3-4 entrées, 7 moyens 5-6, 6 difficiles 8-10), générés de façon déterministe d'après le style, noms propres par personnage, aucun doublon entre personnages. Entrées avec directions : `f`, `b`, `d`, `u`, `df`, `db`, `ff` (double appui avant). Tests : `comboList.test.ts`.
+- **Double appui avant / arrière** : pas lancé (`dash`). `ff+lp` frappe lancée, `ff+rp` roulade offensive, `ff+lk` coup de pied lancé, `ff+rk` projection.
+- **Coups au sol** : LK ou RK pressé pendant la chute → `wakeKick` / `wakeSweep` au relevé.
+- **Liste des combos** : bouton COMBOS dans le menu pause (`ui/ComboList.tsx`).
+- **Indicateur de touches** PC bas-droite (`ui/KeyPad.tsx`).
+- **Sprint tactile** : double geste sur la croix (320 ms) = maintien de `shift`.
+
+### Non fait
+
+- Cartes plus claires (Shin, histoire) : pas commencé.
+- Trois victoires par personnage (manche, partie, défaite) : pas commencé.
+- L'IA n'utilise pas les nouveaux combos.
+- Passer derrière l'adversaire (côté inversé au départ) : pas commencé.
+- Le double geste tactile est relatif à l'écran, pas au sens de la face du combattant : faux si le combattant regarde à gauche.
+- Pas de test navigateur de ce tour (connexion coupée).

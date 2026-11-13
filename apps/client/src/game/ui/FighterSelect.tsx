@@ -138,7 +138,7 @@ export function FighterSelect(p: FighterSelectProps) {
           <section className="hidden flex-col justify-center gap-1.5 lg:flex">
             <div className="mb-1 text-[11px] tracking-[0.3em] text-white/50">ESSAYER UN COUP</div>
             {SHOWN.map((m, i) => {
-              const def = c.moves[m.id];
+              const def = c.moves[m.id]!;
               return (
                 <button
                   key={m.id}

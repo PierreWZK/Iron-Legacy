@@ -97,14 +97,14 @@ describe('combos', () => {
     for (const id of Object.keys(ROSTER)) {
       const moves = getCharacter(id).moves;
       for (const btn of CHAIN_BUTTONS) {
-        const second = moves[`${btn}2` as MoveId];
-        const third = moves[`${btn}3` as MoveId];
+        const second = moves[`${btn}2` as MoveId]!;
+        const third = moves[`${btn}3` as MoveId]!;
         expect(second.startup, `${id}.${btn}2`).toBeGreaterThan(0);
         expect(third.startup, `${id}.${btn}3`).toBeGreaterThan(0);
         expect(second.chain, `${id}.${btn}2 mène à ${btn}3`).toBeDefined();
         expect(third.chain, `${id}.${btn}3 est un final`).toBeUndefined();
       }
-      limbs.set(id, CHAIN_BUTTONS.map((b) => `${moves[`${b}2` as MoveId].limb}/${moves[`${b}3` as MoveId].limb}`).join(','));
+      limbs.set(id, CHAIN_BUTTONS.map((b) => `${moves[`${b}2` as MoveId]!.limb}/${moves[`${b}3` as MoveId]!.limb}`).join(','));
     }
     // Tous les personnages jouables n'ont pas la même chorégraphie de combo.
     expect(new Set(CHARACTER_IDS.map((id) => limbs.get(id))).size).toBeGreaterThanOrEqual(6);

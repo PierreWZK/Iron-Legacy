@@ -7,7 +7,7 @@ import type { Fighter } from '../state';
 
 /** Actions dans lesquelles le défenseur peut bloquer (pas en attaque, stun, esquive…). */
 const BLOCKABLE = new Set<string>([
-  'idle', 'walkFwd', 'walkBack', 'sideL', 'sideR', 'runFwd', 'crouch', 'crouchBlock', 'block',
+  'idle', 'walkFwd', 'walkBack', 'sideL', 'sideR', 'runFwd', 'crouch', 'crouchBlock', 'block', 'dash',
 ]);
 
 export const isAirborne = (f: Fighter): boolean => f.pos.y > 0 || f.vel.y > 0;

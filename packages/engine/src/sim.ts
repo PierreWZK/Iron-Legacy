@@ -1,5 +1,5 @@
 import {
-  ARENA_RADIUS, DODGE_MOVE_TICKS, DODGE_TICKS, DT, FIGHTER_RADIUS, GETUP_TICKS, GRAVITY,
+  ARENA_RADIUS, DASH_BACK_SPEED, DASH_FWD_SPEED, DASH_MOVE_TICKS, DASH_TICKS, DODGE_MOVE_TICKS, DODGE_TICKS, DOUBLE_TAP_TICKS, DT, FIGHTER_RADIUS, GETUP_TICKS, GRAVITY,
   KNOCKDOWN_TICKS, KNOCK_DECAY, MIN_DIST, PARRY_TICKS, PUSH_MAX_HEIGHT, THROW_GRAB_DISTANCE,
 } from './constants';
 import { getCharacter, getMove, type ChainButton, type Speeds } from './characters';
@@ -15,7 +15,18 @@ const ATTACK_BUTTONS = Btn.LP | Btn.RP | Btn.LK | Btn.RK;
 const DODGE_TRIGGERS = Btn.Shift | Btn.Back | Btn.SideL | Btn.SideR;
 /** Un appui d'attaque est mémorisé ce nombre de ticks (il part dès que le coup en cours le permet). */
 const BUFFER_TICKS = 9;
-const DIRECTIONS = Btn.Fwd | Btn.Back | Btn.Crouch;
+/** Préfixe de direction d'une entrée de combo : f avant, b arrière, d bas, u haut (saut), df, db. */
+function dirPrefix(input: InputFrame): string {
+  const c = has(input, Btn.Crouch);
+  if (has(input, Btn.Jump)) return 'u+';
+  if (c && has(input, Btn.Fwd)) return 'df+';
+  if (c && has(input, Btn.Back)) return 'db+';
+  if (c) return 'd+';
+  if (has(input, Btn.Fwd)) return 'f+';
+  if (has(input, Btn.Back)) return 'b+';
+  return '';
+}
+const DASH_MOVES: readonly [number, MoveId][] = [[Btn.LP, 'dashLP'], [Btn.RP, 'dashRP'], [Btn.LK, 'dashLK'], [Btn.RK, 'dashRK']];
 const CHAIN_ORDER: readonly [number, ChainButton][] = [[Btn.LP, 'lp'], [Btn.RP, 'rp'], [Btn.LK, 'lk'], [Btn.RK, 'rk']];
 /** Montée de l'élan de marche par tick, et chute quand on s'arrête. */
 const PACE_UP = 0.2;
@@ -60,9 +71,25 @@ function trackInput(w: World, f: Fighter, input: InputFrame, age: boolean): Inpu
   if (pressed & Btn.RP) f.lastPress.rp = w.tick;
   if (pressed & Btn.LK) f.lastPress.lk = w.tick;
   if (pressed & Btn.RK) f.lastPress.rk = w.tick;
+  if (pressed & Btn.Fwd) {
+    if (w.tick - f.tapFwd <= DOUBLE_TAP_TICKS) {
+      f.dashReq = 1;
+      f.dashReqTick = w.tick;
+      f.tapFwd = -999;
+    } else f.tapFwd = w.tick;
+  }
+  if (pressed & Btn.Back) {
+    if (w.tick - f.tapBack <= DOUBLE_TAP_TICKS) {
+      f.dashReq = 2;
+      f.dashReqTick = w.tick;
+      f.tapBack = -999;
+    } else f.tapBack = w.tick;
+  }
+  if ((f.action === 'knockdown' || f.action === 'thrown') && (pressed & (Btn.LK | Btn.RK))) f.wake = pressed & Btn.LK ? 1 : 2;
   const atk = pressed & ATTACK_BUTTONS;
   if (atk) {
     f.buffer = atk;
+    f.bufferIn = input;
     f.bufferAge = 0;
   } else if (age && f.action !== 'attack' && f.buffer && ++f.bufferAge > BUFFER_TICKS) {
     f.buffer = 0;
@@ -98,6 +125,9 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
       return;
     case 'dodge':
       advanceDodge(f, target, speeds.dodge);
+      return;
+    case 'dash':
+      advanceDash(f, target, eff);
       return;
     case 'parry':
       f.moveFrame++;
@@ -142,6 +172,11 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
       startAction(f, 'dodge', side > 0 ? 'right' : 'left');
       return;
     }
+  }
+  if (f.dashReq && w.tick - f.dashReqTick <= 3 && !crouch) {
+    startAction(f, 'dash', f.dashReq === 1 ? 'fwd' : 'back');
+    f.dashReq = 0;
+    return;
   }
   if (eff & ATTACK_BUTTONS) {
     const running = f.action === 'runFwd' && shift && fwd;
@@ -193,10 +228,12 @@ function advanceAttack(f: Fighter, input: InputFrame, eff: InputFrame, target: V
     endAction(f);
     return;
   }
-  // Combo : bouton sans direction à partir de `chainFrame`, touché ou non (un appui en avance est mémorisé).
-  if (m.chain && f.moveFrame >= (m.chainFrame ?? m.startup + m.active + 2) && !has(input, DIRECTIONS)) {
+  // Combo : entrée (direction + bouton) à partir de `chainFrame`, touché ou non. Un appui en avance est mémorisé
+  // avec la direction tenue à ce moment-là.
+  const dir = dirPrefix(f.buffer ? f.bufferIn : input);
+  if (m.chain && f.moveFrame >= (m.chainFrame ?? m.startup + m.active + 2)) {
     for (const [bit, key] of CHAIN_ORDER) {
-      const next = m.chain[key];
+      const next = m.chain[dir + key];
       if ((eff & bit) && next) {
         if (target) face(f, target);
         startMove(f, next);
@@ -207,12 +244,28 @@ function advanceAttack(f: Fighter, input: InputFrame, eff: InputFrame, target: V
   // Enchaînement : annulation sur coup touché/bloqué, ou « string » pendant la récupération (même à vide).
   const recovering = f.moveFrame > m.startup + m.active;
   // Un coup à combo, bouton nu : on attend la fenêtre de combo plutôt que de relancer le même coup.
-  const waitsForCombo = m.chain !== undefined && !has(input, DIRECTIONS) && CHAIN_ORDER.some(([bit, key]) => (eff & bit) && m.chain?.[key]);
+  const waitsForCombo = m.chain !== undefined && CHAIN_ORDER.some(([bit, key]) => (eff & bit) && m.chain?.[dir + key]);
   const canChain = !waitsForCombo && ((m.cancel && f.moveHit) || (m.string === true && recovering));
   if (canChain && (eff & ATTACK_BUTTONS)) {
     const next = attackIntent(input, eff, stanceOf(input, f), false);
     if (next && !getMove(f.characterId, next).throw) startMove(f, next);
   }
+}
+
+/** Pas lancé en avant (ou recul) après un double appui. Un bouton pendant le pas en avant lance un coup spécial. */
+function advanceDash(f: Fighter, target: Vec3 | null, eff: InputFrame): void {
+  f.moveFrame++;
+  const fwd = f.sub === 'fwd';
+  if (target && f.moveFrame <= DASH_MOVE_TICKS) moveGrounded(f, target, fwd ? 1 : -1, 0, fwd ? DASH_FWD_SPEED : DASH_BACK_SPEED, 0);
+  if (fwd && (eff & ATTACK_BUTTONS)) {
+    for (const [bit, id] of DASH_MOVES) {
+      if (eff & bit) {
+        startMove(f, id);
+        return;
+      }
+    }
+  }
+  if (f.moveFrame > DASH_TICKS) endAction(f);
 }
 
 function advanceDodge(f: Fighter, target: Vec3 | null, speed: number): void {
@@ -280,6 +333,12 @@ function startJump(f: Fighter, fwd: boolean, back: boolean, side: number, s: Spe
 function afterStun(f: Fighter): void {
   f.airStun = false;
   if (f.action === 'knockdown' || f.action === 'thrown') {
+    const wake = f.wake;
+    f.wake = 0;
+    if (wake) {
+      startMove(f, wake === 1 ? 'wakeKick' : 'wakeSweep');
+      return;
+    }
     f.action = 'getup';
     f.stun = GETUP_TICKS;
     return;
