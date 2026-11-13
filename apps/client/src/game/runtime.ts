@@ -1,3 +1,4 @@
+import { effectiveLevel } from './difficulty';
 import {
   aiInput, Btn, cloneWorld, createDuelWorld, createWorld, DT, MAX_AHEAD, Rollback, stepWorld, TICK_RATE, type GameEvent, type World,
 } from '@iron/engine';
@@ -99,7 +100,7 @@ export class Runtime {
   private queue: GameEvent[] = [];
 
   start(cfg: MatchConfig): void {
-    this.config = { ...cfg };
+    this.config = { ...cfg, level: cfg.mode === 'ai' ? effectiveLevel(cfg.level) : cfg.level };
     this.world = createDuelWorld({
       p1: cfg.p1, p2: cfg.p2, intro: true, maxHealth: cfg.maxHealth, health: cfg.health,
     });

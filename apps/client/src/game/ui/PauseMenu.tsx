@@ -148,7 +148,7 @@ export function PauseMenu() {
             <SlantButton primary onClick={closePause}>REPRENDRE</SlantButton>
             <SlantButton onClick={() => usePause.setState({ view: 'combos' })}>COMBOS</SlantButton>
             <SlantButton onClick={() => usePause.setState({ view: 'keys' })}>COMMANDES CLAVIER</SlantButton>
-            <SlantButton onClick={() => usePause.setState({ view: 'settings' })}>RÉGLAGES TACTILES</SlantButton>
+            <SlantButton onClick={() => usePause.setState({ view: 'settings' })}>RÉGLAGES</SlantButton>
             <SlantButton onClick={toggleHelp}>AIDE : {help ? 'AFFICHÉE' : 'MASQUÉE'}</SlantButton>
             {canRestart && <SlantButton onClick={() => { closePause(); startFight(); }}>RECOMMENCER</SlantButton>}
             <SlantButton onClick={() => { closePause(); quitFight(); }}>QUITTER LE COMBAT</SlantButton>

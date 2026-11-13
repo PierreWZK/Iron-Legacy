@@ -1013,3 +1013,9 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - Caméra un peu plus haute (2,5 m) pour lire la profondeur quand les combattants sont alignés avec la vue.
 - En ligne, l'axe est maintenant le même pour les deux joueurs : le joueur 2 (à droite de l'écran) avance avec la touche gauche. Avant, ses touches étaient miroir. Pas testé à deux machines.
 - Tests : `behind.test.ts`. Vérifié à l'écran : le pas de côté fait tourner P1 autour de P2, face à lui. Le demi-tour complet n'a pas été vu à l'écran (trop lent à 6 images/s), seulement en test moteur.
+
+### Session 18 suite : IA et difficulté
+
+- **L'IA fait des combos** (`engine/ai.ts`) : pendant un coup, elle suit un lien `chain` du coup en cours (tout chemin de l'arbre est un vrai combo). Niveaux 1-2 : rien de nouveau ; 3-4 : triple appui seulement ; 5 et plus : tous les combos, directions comprises. Nouveau niveau 8 « impossible » (`AI_MAX_LEVEL`). Tests : `aiCombo.test.ts`.
+- **Réglage « Niveau des adversaires »** (Réglages, menu principal et pause) : facile (-2), moyen (0), difficile (+2), impossible (niveau 8 partout). Appliqué dans `runtime.start` à tous les combats contre l'ordinateur (arcade, histoire, robots, combat rapide), en plus du niveau prévu par le mode. Sauvegardé dans le navigateur (`iron-legacy.ai`). `game/difficulty.ts`.
+- Limites : l'IA ne fait pas de double appui (pas de roulade ni de projection lancée) ; le réglage changé pendant un combat vaut au combat suivant ; les bots en ligne du serveur ne lisent pas ce réglage.

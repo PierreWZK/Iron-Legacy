@@ -26,7 +26,7 @@ export function Menu() {
     { label: 'EN LIGNE', hint: 'Duel, dernier debout, 2 contre 2', run: onlineOpen, accent: '#34e0ff' },
     { label: 'ROBOTS', hint: 'Survie et défis', run: robotsOpen, accent: '#ffb020' },
     { label: 'ENTRAÎNEMENT', hint: 'Teste tes coups sur un mannequin', run: () => selectOpen('training'), accent: '#7dff9a' },
-    { label: 'RÉGLAGES', hint: 'Commandes tactiles, côté des attaques', run: () => useApp.setState({ screen: 'settings' }), accent: '#c9d4e3' },
+    { label: 'RÉGLAGES', hint: 'Difficulté, commandes tactiles, côté des attaques', run: () => useApp.setState({ screen: 'settings' }), accent: '#c9d4e3' },
     { label: 'COMPTE', hint: 'Sauvegarde et classement', run: () => useApp.setState({ screen: 'account' }), accent: '#c9d4e3' },
   ], []);
   const [sel, setSel] = useState(0);
