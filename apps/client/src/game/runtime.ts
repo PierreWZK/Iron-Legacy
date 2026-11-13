@@ -37,29 +37,21 @@ export const DUMMY_MODES: readonly DummyMode[] = ['idle', 'block', 'attack', 'pa
 const MAX_STEPS_PER_FRAME = 5;
 const PATROL = [Btn.Fwd, Btn.SideR, Btn.Back, Btn.SideL] as const;
 
-/** Axe P1 → P2 (repli sur X si superposés). La droite de l'écran suit cet axe. */
-export function fightAxis(w: World): Axis {
-  const a = w.fighters[0]!.pos;
-  const b = w.fighters[1]!.pos;
-  const d = Math.hypot(b.x - a.x, b.z - a.z);
-  return d > 1e-4 ? { x: (b.x - a.x) / d, z: (b.z - a.z) / d } : { x: 1, z: 0 };
+/**
+ * Axe de l'écran : la droite de l'écran est toujours +X, la caméra ne tourne jamais. Les combattants
+ * se font face où qu'ils soient : en tournant autour de l'adversaire (pas de côté), on peut passer
+ * derrière lui et se retrouver à droite de l'écran. Les touches sont lues sur l'écran, puis projetées sur
+ * l'avant du combattant (voir `KeyboardInput.sample`).
+ */
+export const VIEW_AXIS: Axis = { x: 1, z: 0 };
+
+export function fightAxis(_w: World): Axis {
+  return VIEW_AXIS;
 }
 
-/** Direction du combattant `self` vers l'ennemi vivant le plus proche (repli : axe X). */
-export function axisFor(w: World, self: number): Axis {
-  const me = w.fighters[self]!;
-  let best: { x: number; z: number } | null = null;
-  let bd = Infinity;
-  for (const o of w.fighters) {
-    if (o.id === self || o.team === me.team || o.health <= 0) continue;
-    const d = Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z);
-    if (d < bd) {
-      bd = d;
-      best = { x: o.pos.x, z: o.pos.z };
-    }
-  }
-  if (!best || bd < 1e-4) return { x: 1, z: 0 };
-  return { x: (best.x - me.pos.x) / bd, z: (best.z - me.pos.z) / bd };
+/** Même axe fixe pour tous les joueurs, en ligne aussi : la droite de l'écran reste la droite. */
+export function axisFor(_w: World, _self: number): Axis {
+  return VIEW_AXIS;
 }
 
 /** Entrées du mannequin d'entraînement (déterministes, selon le tick). */

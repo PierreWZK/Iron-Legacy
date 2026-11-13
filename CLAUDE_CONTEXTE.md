@@ -1006,3 +1006,10 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - Tous les décors ont une ambiance (`render/arenas/looks.ts`, `atmosphere.tsx`) : ciel dégradé (`SkyDome`), étoiles, lumière hémisphérique, contre-jour coloré, lumière centrale sur les combattants, brouillard teinté comme l'horizon, exposition par décor, particules (lucioles, feuilles, pétales, neige, braises, poussière, étincelles). Toit de Shin, rue, labo, forteresse, usine éclaircis ; immeubles plus clairs avec fenêtres lumineuses. Dojo (`render/Arena.tsx`) : même ciel et mêmes lumières.
 - Vérifié à l'écran : toit de Shin (ciel étoilé, immeubles bleus lisibles), dojo (coucher de soleil). Pas relu à l'écran : les dix autres décors (forêt, automne, canyon, neige, toundra, labo, forteresse, rue, usine, temple, désert).
 - Pas de nouveaux éléments de décor (formes) : seulement lumière, ciel et particules.
+
+### Session 18 suite : départ inversé (passer derrière l'adversaire)
+
+- La caméra ne tourne plus : la droite de l'écran est toujours +X (`VIEW_AXIS` dans `runtime.ts`). Les touches sont lues sur l'écran puis projetées sur l'avant du combattant, qui se tourne toujours vers l'adversaire. En tournant autour de lui (pas de côté : Z/S, FOND/ÉCRAN au tactile), on passe derrière et on se retrouve à droite de l'écran.
+- Caméra un peu plus haute (2,5 m) pour lire la profondeur quand les combattants sont alignés avec la vue.
+- En ligne, l'axe est maintenant le même pour les deux joueurs : le joueur 2 (à droite de l'écran) avance avec la touche gauche. Avant, ses touches étaient miroir. Pas testé à deux machines.
+- Tests : `behind.test.ts`. Vérifié à l'écran : le pas de côté fait tourner P1 autour de P2, face à lui. Le demi-tour complet n'a pas été vu à l'écran (trop lent à 6 images/s), seulement en test moteur.

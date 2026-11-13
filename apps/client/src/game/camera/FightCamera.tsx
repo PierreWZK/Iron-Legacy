@@ -6,8 +6,8 @@ const tmp = new THREE.Vector3();
 const look = new THREE.Vector3();
 
 /**
- * Caméra de combat : cadre le milieu des combattants, perpendiculaire à l'axe P1→P2
- * (P1 toujours à gauche). Distance proportionnelle à l'écart pour garder tout le monde visible.
+ * Caméra de combat : cadre le milieu des combattants, de profil, orientation fixe (+X à droite)
+ * (la droite de l écran est fixe : la caméra ne tourne jamais). Distance proportionnelle à l'écart pour garder tout le monde visible.
  * Secousse proportionnelle à la force des impacts (lecture seule de `runtime.shake`).
  */
 export function FightCamera() {
@@ -38,7 +38,7 @@ export function FightCamera() {
     const fx = axis.z;
     const fz = -axis.x;
     const dist = THREE.MathUtils.clamp(4.2 + spread * 2.2, 5.5, 13);
-    tmp.set(cx - fx * dist, 1.9 + spread * 0.25, cz - fz * dist);
+    tmp.set(cx - fx * dist, 2.5 + spread * 0.3, cz - fz * dist);
     look.set(cx, 1.15, cz);
 
     const k = 1 - Math.exp(-delta * 7);
