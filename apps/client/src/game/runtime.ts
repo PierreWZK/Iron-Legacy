@@ -38,6 +38,8 @@ export const DUMMY_MODES: readonly DummyMode[] = ['idle', 'block', 'attack', 'pa
 const MAX_STEPS_PER_FRAME = 5;
 /** Rattrapage en ligne : nombre maximal de ticks rejoués d'un coup (10 s). */
 const CATCH_UP_MAX = 600;
+/** En ligne : ticks d'avance en plus du ping, pour absorber les variations du réseau. */
+const INPUT_MARGIN = 3;
 const PATROL = [Btn.Fwd, Btn.SideR, Btn.Back, Btn.SideL] as const;
 
 /**
@@ -120,6 +122,8 @@ export class Runtime {
   heroes: string[] = ['kairo', 'vera'];
   /** Envoie l'entrée locale au serveur pour le tick donné. */
   private sendInput: ((t: number, bits: number) => void) | null = null;
+  /** Ping aller-retour lissé (ms), mis à jour par la session en ligne. */
+  rtt = 80;
   /** Tick le plus avancé confirmé par le serveur (+1). */
   private serverTick = 0;
   private queue: GameEvent[] = [];
@@ -195,15 +199,27 @@ export class Runtime {
   private advanceOnline(delta: number, kb: KeyboardInput): void {
     const rb = this.online!;
     this.acc += Math.min(delta, 0.25);
-    // En retard sur le serveur (onglet caché, machine lente) : on rattrape d'un coup, sinon nos entrées
-    // arriveraient pour des ticks déjà joués et seraient ignorées.
-    const behind = this.serverTick - rb.tick;
-    const cap = behind > 6 ? Math.min(behind, CATCH_UP_MAX) + MAX_STEPS_PER_FRAME : MAX_STEPS_PER_FRAME;
-    if (behind > 6) this.acc = Math.max(this.acc, Math.min(behind, CATCH_UP_MAX) * DT);
+    // Le client doit jouer EN AVANCE sur le serveur : une entrée envoyée maintenant arrive après un aller
+    // (ping / 2), quand le serveur a déjà avancé d'autant depuis le dernier tick reçu (encore ping / 2).
+    // Cible = dernier tick reçu + ping complet + marge. En retard, nos entrées arriveraient pour des ticks
+    // déjà joués : le serveur jouerait avec une ancienne entrée et nous corrigerait sans cesse.
+    const lead = Math.ceil(this.rtt / (DT * 1000)) + INPUT_MARGIN;
+    const diff = this.serverTick + lead - rb.tick;
+    let cap = MAX_STEPS_PER_FRAME;
+    if (diff > 6) {
+      // Gros retard (départ, onglet caché, machine lente) : rattrapage d'un coup.
+      cap = Math.min(diff, CATCH_UP_MAX) + MAX_STEPS_PER_FRAME;
+      this.acc = Math.max(this.acc, Math.min(diff, CATCH_UP_MAX) * DT);
+    } else if (diff > 1) {
+      this.acc += DT * 0.25; // un peu plus vite que le temps réel
+    } else if (diff < -2) {
+      this.acc -= DT * 0.25; // un peu plus lent
+    }
+    const maxAhead = Math.max(MAX_AHEAD, lead + 10);
     let steps = 0;
     while (this.acc >= DT && steps < cap) {
       // Trop d'avance sur le serveur : on attend ses confirmations (évite des corrections massives).
-      if (rb.tick - this.serverTick > MAX_AHEAD) {
+      if (rb.tick - this.serverTick > maxAhead) {
         this.acc = 0;
         break;
       }

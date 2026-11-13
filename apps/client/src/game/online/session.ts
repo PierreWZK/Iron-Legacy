@@ -190,7 +190,12 @@ function handle(m: ServerMessage): void {
       return;
     }
     case 'pong':
-      useOnline.setState({ ping: Math.max(0, Date.now() - m.ts) });
+    {
+      const ping = Math.max(0, Date.now() - m.ts);
+      useOnline.setState({ ping });
+      // Lissage, mais une hausse est prise tout de suite (mieux vaut trop d'avance que des entrées en retard).
+      runtime.rtt = ping > runtime.rtt ? ping : runtime.rtt * 0.8 + ping * 0.2;
+    }
       return;
     case 'error':
       useOnline.setState({ error: m.message });
