@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 /** Actions du combat qu'on peut lier à des touches. */
 export const ACTIONS = [
-  'screenLeft', 'screenRight', 'intoScreen', 'towardScreen', 'crouch', 'jump', 'shift', 'lp', 'rp', 'lk', 'rk',
+  'screenLeft', 'screenRight', 'jump', 'crouch', 'shift', 'lp', 'rp', 'lk', 'rk',
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 export type Bindings = Record<Action, string[]>;
@@ -10,10 +10,8 @@ export type Bindings = Record<Action, string[]>;
 export const ACTION_LABELS: Record<Action, string> = {
   screenLeft: 'Aller à gauche',
   screenRight: 'Aller à droite',
-  intoScreen: 'Pas de côté (vers le fond)',
-  towardScreen: 'Pas de côté (vers l\'écran)',
-  crouch: 'S\'accroupir',
-  jump: 'Sauter',
+  jump: 'Haut : sauter (double appui : pas vers le fond)',
+  crouch: 'Bas : s\'accroupir (double appui : pas vers l\'écran)',
   shift: 'Courir / esquiver',
   lp: 'Poing gauche',
   rp: 'Poing droit',
@@ -25,10 +23,8 @@ export const ACTION_LABELS: Record<Action, string> = {
 export const DEFAULT_BINDINGS: Bindings = {
   screenLeft: ['q', 'arrowleft'],
   screenRight: ['d', 'arrowright'],
-  intoScreen: ['z', 'arrowup'],
-  towardScreen: ['s', 'arrowdown'],
-  crouch: ['c'],
-  jump: [' '],
+  jump: ['z', 'arrowup'],
+  crouch: ['s', 'arrowdown'],
   shift: ['shift'],
   lp: ['a'],
   rp: ['e'],
@@ -42,7 +38,8 @@ export const RESERVED_KEYS = ['escape', 'enter', 'h', 't', 'i', 'f3'];
 /** Nombre d'emplacements de touche par action. */
 export const SLOTS = 2;
 
-const KEY = 'iron-legacy.keys';
+// v2 : haut / bas remplacent espace / C (les anciens réglages ne sont pas repris).
+const KEY = 'iron-legacy.keys.v2';
 
 function load(): Bindings {
   try {

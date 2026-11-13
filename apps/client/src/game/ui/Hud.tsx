@@ -186,7 +186,7 @@ export function Hud() {
       <div className={`mx-auto flex max-w-6xl items-start gap-3 px-4 pt-4 sm:px-6 short:pt-2 ${h.roster.length > 2 ? 'hidden' : ''}`}>
         <Corner id={ids[0]!} name={h.names[0]} value={h.health[0]} max={h.maxHealth[0]} wins={h.wins[0]} side="left" />
         <div className="flex w-24 shrink-0 flex-col items-center pt-1 sm:w-28">
-          <div className={`font-display text-5xl tabular-nums italic short:text-3xl drop-shadow-[0_3px_0_rgba(0,0,0,0.8)] ${h.clock <= 10 && h.phase === 'fight' ? 'animate-pulse text-iron-red' : 'text-iron-amber'}`}>{h.clock}</div>
+          <div className={`font-display text-5xl tabular-nums italic short:text-3xl drop-shadow-[0_3px_0_rgba(0,0,0,0.8)] ${h.clock <= 10 && h.phase === 'fight' && mode !== 'training' ? 'animate-pulse text-iron-red' : 'text-iron-amber'}`}>{mode === 'training' ? '∞' : h.clock}</div>
           <div className="text-[10px] tracking-[0.35em] text-white/60">{t.hud.round} {h.round}</div>
         </div>
         <Corner id={ids[1]!} name={h.names[1]} value={h.health[1]} max={h.maxHealth[1]} wins={h.wins[1]} side="right" />

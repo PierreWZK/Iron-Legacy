@@ -6,9 +6,17 @@ export const ROOM_NAME = 'duel';
 export const FOUR_ROOM_NAME = 'four';
 /** Salle 2v2 : quatre places, équipes par parité de place (0 et 2 contre 1 et 3). */
 export const TEAM_ROOM_NAME = 'team';
+/** Salle unique du client : quatre places, l'hôte choisit le mode (duel, dernier debout à 3 ou 4, 2v2). */
+export const FIGHT_ROOM_NAME = 'fight';
+
+/** Mode de jeu d'un salon. */
+export type RoomMode = 'duel' | 'ffa' | 'team';
+export const ROOM_MODES: readonly RoomMode[] = ['duel', 'ffa', 'team'];
+/** Nombre de combattants accepté par mode (places occupées au lancement). */
+export const MODE_PLAYERS: Record<RoomMode, readonly number[]> = { duel: [2], ffa: [3, 4], team: [4] };
 /** Salle des quatre combattants : nom Colyseus et taille de la place. */
 /** Nombre de places par salle. */
-export const ROOM_SIZE: Record<string, number> = { [ROOM_NAME]: 2, [FOUR_ROOM_NAME]: 4, [TEAM_ROOM_NAME]: 4 };
+export const ROOM_SIZE: Record<string, number> = { [ROOM_NAME]: 4, [FOUR_ROOM_NAME]: 4, [TEAM_ROOM_NAME]: 4, [FIGHT_ROOM_NAME]: 4 };
 /** Envoie une empreinte d'état au client toutes les N frames (détection des divergences). */
 export const HASH_EVERY = 30;
 /** Avance maximale du client sur le serveur confirmé, en ticks (au-delà, le client attend). */
@@ -30,13 +38,15 @@ export interface LobbyState {
   code: string;
   phase: 'lobby' | 'fight' | 'result';
   arena: string;
-  /** Nombre de places (2 ou 4). */
+  /** Nombre de places (4). */
   size: number;
+  /** Mode choisi par l'hôte. */
+  mode: RoomMode;
   /** Une place par slot ; null si libre. */
   players: (LobbyPlayer | null)[];
   /** Vote de revanche par slot. */
   rematch: boolean[];
-  /** Mode dernier debout (salle à quatre). */
+  /** Mode dernier debout. */
   ffa: boolean;
   /** Mode équipes 2v2. */
   team: boolean;
@@ -59,7 +69,11 @@ export type ClientMessage =
   | { type: 'rematch' }
   | { type: 'resync' }
   /** Hôte uniquement : ajoute un bot dans la première place libre, ou retire le dernier bot. */
-  | { type: 'bot'; add: boolean };
+  | { type: 'bot'; add: boolean }
+  /** Hôte uniquement : change le mode de jeu (dans le salon). */
+  | { type: 'mode'; mode: RoomMode }
+  /** Hôte uniquement, après un combat : retour au salon (changer de mode, de combattants…). */
+  | { type: 'lobby' };
 
 /** Messages envoyés par le serveur. */
 export type ServerMessage =

@@ -1,13 +1,16 @@
-import { ARENA_IDS, CHARACTER_IDS, getCharacter } from '@iron/engine';
+import { ARENA_IDS, CHARACTER_IDS, getCharacter, MODE_PLAYERS, ROOM_MODES, type RoomMode } from '@iron/engine';
 import { useState, type ReactNode } from 'react';
-import type { RoomKind } from '../online/connection';
 import { useProgress } from '../progress';
 import {
-  onlineBot, onlineHost, onlineJoin, onlineLeave, onlineRematch, onlineSetArena, onlineSetHero, onlineSetName,
-  onlineSetReady, onlineStart, useOnline,
+  inviteLink, onlineBackToLobby, onlineBot, onlineHost, onlineJoin, onlineLeave, onlineRematch, onlineSetArena,
+  onlineSetHero, onlineSetMode, onlineSetName, onlineSetReady, onlineStart, useOnline,
 } from '../online/session';
 
-const KIND_LABEL: Record<RoomKind, string> = { duel: 'DUEL (2)', four: 'DERNIER DEBOUT (4)', team: '2 CONTRE 2' };
+const MODES: Record<RoomMode, { label: string; players: string; hint: string }> = {
+  duel: { label: 'DUEL', players: '1 contre 1', hint: 'Manches au meilleur des 3.' },
+  ffa: { label: 'DERNIER DEBOUT', players: '1v1v1 ou à 4', hint: 'Chacun pour soi, le dernier en vie gagne.' },
+  team: { label: '2 CONTRE 2', players: '4 joueurs', hint: 'Équipe A (places 1 et 3) contre équipe B (2 et 4).' },
+};
 
 function Button({ onClick, children, primary = false, disabled = false }: {
   onClick: () => void; children: ReactNode; primary?: boolean; disabled?: boolean;
@@ -17,7 +20,7 @@ function Button({ onClick, children, primary = false, disabled = false }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`border px-6 py-3 text-sm tracking-[0.25em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`border px-5 py-3 text-sm tracking-[0.25em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 short:py-2 ${
         primary ? 'border-iron-amber bg-iron-amber text-black hover:brightness-110' : 'border-white/30 bg-black/40 text-white/80 hover:border-white/70'
       }`}
     >
@@ -26,71 +29,165 @@ function Button({ onClick, children, primary = false, disabled = false }: {
   );
 }
 
-function Frame({ title, children }: { title: string; children: ReactNode }) {
+function Frame({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
-    <main className="relative mx-auto flex h-full max-w-4xl flex-col gap-6 overflow-y-auto px-4 py-8 font-display text-white sm:px-6">
-      <h1 className="text-3xl tracking-[0.3em] text-iron-amber">{title}</h1>
+    <main className="relative mx-auto flex h-full max-w-4xl flex-col gap-5 overflow-y-auto px-4 py-8 font-display text-white sm:px-6 short:gap-3 short:py-3">
+      <header>
+        <h1 className="text-3xl tracking-[0.3em] text-iron-amber short:text-xl">{title}</h1>
+        {sub && <p className="mt-1 text-xs tracking-[0.3em] text-iron-cyan">{sub}</p>}
+      </header>
       {children}
     </main>
   );
 }
 
+function Panel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-3 border border-white/15 bg-black/40 p-4 short:p-3">
+      <h2 className="text-xs tracking-[0.35em] text-iron-cyan">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+/** Copie dans le presse-papiers, avec repli pour les pages non sécurisées (http). */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }
+}
+
+function NameField() {
+  const name = useOnline((s) => s.name);
+  return (
+    <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
+      PSEUDO
+      <input
+        value={name}
+        onChange={(e) => onlineSetName(e.target.value)}
+        maxLength={16}
+        className="w-64 max-w-full border border-white/30 bg-black/50 px-3 py-2 text-base tracking-normal text-white"
+      />
+    </label>
+  );
+}
+
 function HomeView() {
   const st = useOnline();
-  const [code, setCode] = useState('');
-  const [kind, setKind] = useState<RoomKind>('duel');
-  return (
-    <Frame title="EN LIGNE">
-      <p className="max-w-2xl text-sm text-white/70">
-        Crée un salon et envoie le code à tes adversaires, ou rejoins un salon avec son code. Duel à deux, dernier debout à quatre, ou 2 contre 2 (les places libres peuvent être comblées par des bots).
-      </p>
-      <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
-        PSEUDO
-        <input
-          value={st.name}
-          onChange={(e) => onlineSetName(e.target.value)}
-          maxLength={16}
-          className="w-64 border border-white/30 bg-black/50 px-3 py-2 text-base tracking-normal text-white"
-        />
-      </label>
-      <div className="flex flex-wrap items-end gap-3">
-        <Button primary onClick={() => void onlineHost('duel')}>CRÉER UN DUEL (2)</Button>
-        <Button primary onClick={() => void onlineHost('four')}>CRÉER DERNIER DEBOUT (4)</Button>
-        <Button primary onClick={() => void onlineHost('team')}>CRÉER 2 CONTRE 2</Button>
-      </div>
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
-          CODE DU SALON
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            maxLength={5}
-            className="w-40 border border-white/30 bg-black/50 px-3 py-2 text-lg tracking-[0.3em] text-white"
-          />
-        </label>
-        <div className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
-          TYPE DU SALON
-          <div className="flex gap-2">
-            {(Object.keys(KIND_LABEL) as RoomKind[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={kind === k}
-                onClick={() => setKind(k)}
-                className={`border px-3 py-2 text-[11px] tracking-widest ${kind === k ? 'border-iron-amber text-iron-amber' : 'border-white/20 text-white/70'}`}
-              >
-                {KIND_LABEL[k]}
-              </button>
-            ))}
-          </div>
+  const [code, setCode] = useState(st.invite);
+  const [busy, setBusy] = useState(false);
+  const run = (p: Promise<void>) => {
+    setBusy(true);
+    void p.finally(() => setBusy(false));
+  };
+
+  if (st.invite) {
+    return (
+      <Frame title="INVITATION" sub={`SALON ${st.invite}`}>
+        <p className="max-w-xl text-sm text-white/70">On t'invite à un combat en ligne. Choisis ton pseudo puis rejoins le salon.</p>
+        <NameField />
+        {st.error && <p className="text-sm text-red-400">{st.error}</p>}
+        <div className="flex flex-wrap gap-3">
+          <Button primary disabled={busy} onClick={() => run(onlineJoin(st.invite))}>REJOINDRE LE SALON</Button>
+          <Button onClick={() => useOnline.setState({ invite: '', error: null })}>AUTRE SALON</Button>
+          <Button onClick={onlineLeave}>MENU</Button>
         </div>
-        <Button onClick={() => void onlineJoin(code, kind)}>REJOINDRE</Button>
-      </div>
+      </Frame>
+    );
+  }
+
+  return (
+    <Frame title="EN LIGNE" sub="JUSQU'À 4 COMBATTANTS · BOTS POSSIBLES">
+      <NameField />
+      <Panel title="CRÉER UN SALON">
+        <p className="text-xs text-white/50">Choisis un mode de départ : tu pourras le changer dans le salon. Tu recevras un lien à envoyer.</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {ROOM_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              disabled={busy}
+              onClick={() => run(onlineHost(m))}
+              className="border border-white/20 bg-black/40 p-3 text-left transition-colors hover:border-iron-amber disabled:opacity-40"
+            >
+              <div className="text-sm tracking-[0.2em] text-iron-amber">{MODES[m].label}</div>
+              <div className="text-xs tracking-widest text-white/70">{MODES[m].players}</div>
+              <div className="mt-1 font-body text-xs text-white/45">{MODES[m].hint}</div>
+            </button>
+          ))}
+        </div>
+      </Panel>
+      <Panel title="REJOINDRE UN SALON">
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(onlineJoin(code));
+          }}
+        >
+          <label className="flex flex-col gap-1 text-xs tracking-widest text-white/60">
+            CODE DU SALON
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              maxLength={5}
+              placeholder="ABCDE"
+              className="w-40 border border-white/30 bg-black/50 px-3 py-2 text-lg tracking-[0.3em] text-white placeholder:text-white/20"
+            />
+          </label>
+          <button type="submit" disabled={busy} className="border border-white/30 bg-black/40 px-5 py-3 text-sm tracking-[0.25em] text-white/80 hover:border-white/70 disabled:opacity-40 short:py-2">
+            REJOINDRE
+          </button>
+        </form>
+      </Panel>
       {st.error && <p className="text-sm text-red-400">{st.error}</p>}
       <div>
         <Button onClick={onlineLeave}>MENU</Button>
       </div>
     </Frame>
+  );
+}
+
+function InviteCard({ code }: { code: string }) {
+  const [copied, setCopied] = useState<'link' | 'code' | 'fail' | null>(null);
+  const copy = async (what: 'link' | 'code') => {
+    const ok = await copyText(what === 'link' ? inviteLink(code) : code);
+    setCopied(ok ? what : 'fail');
+    window.setTimeout(() => setCopied(null), 2000);
+  };
+  const canShare = typeof navigator.share === 'function';
+  return (
+    <Panel title="INVITE TES ADVERSAIRES">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="text-4xl tracking-[0.4em] text-iron-amber short:text-2xl">{code}</div>
+        <div className="flex flex-wrap gap-2">
+          <Button primary onClick={() => void copy('link')}>COPIER LE LIEN</Button>
+          <Button onClick={() => void copy('code')}>COPIER LE CODE</Button>
+          {canShare && (
+            <Button onClick={() => void navigator.share({ title: 'Iron Legacy', text: `Rejoins mon salon ${code}`, url: inviteLink(code) }).catch(() => {})}>
+              PARTAGER
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="min-h-4 text-xs text-white/50" aria-live="polite">
+        {copied === 'link' ? 'Lien copié : il ouvre le jeu directement sur ce salon.'
+          : copied === 'code' ? 'Code copié.'
+            : copied === 'fail' ? `Copie impossible : envoie ce lien à la main, ${inviteLink(code)}`
+              : 'Le lien ouvre le jeu directement sur ce salon.'}
+      </p>
+    </Panel>
   );
 }
 
@@ -101,45 +198,68 @@ function LobbyView() {
   const me = st.slot;
   const isHost = me === 0;
   const size = lobby?.size ?? st.size;
+  const mode: RoomMode = lobby?.mode ?? 'duel';
   const seats = lobby?.players ?? Array.from({ length: size }, () => null);
   const mine = seats[me];
-  const allReady = seats.length === size && seats.every((p) => p !== null && p.ready);
-  const botCount = seats.filter((p) => p?.bot).length;
-  const freeSeats = seats.some((p) => p === null);
+  const taken = seats.filter((p) => p !== null);
+  const counts = MODE_PLAYERS[mode];
+  const maxPlayers = Math.max(...counts);
+  const countOk = counts.includes(taken.length);
+  const allReady = taken.every((p) => p.ready);
+  const botCount = taken.filter((p) => p.bot).length;
+  const canAddBot = taken.length < maxPlayers && seats.some((p) => p === null);
+  const status = !countOk
+    ? `${taken.length} combattant${taken.length > 1 ? 's' : ''} : ce mode se joue à ${counts.join(' ou ')}${isHost && taken.length < maxPlayers ? ' (invite quelqu\'un ou ajoute un bot)' : ''}.`
+    : !allReady ? 'En attente : tout le monde doit être prêt.'
+      : isHost ? 'Tout est prêt : lance le combat !' : 'Tout est prêt : l\'hôte peut lancer.';
 
   return (
-    <Frame title={`SALON · ${size} JOUEURS`}>
-      <p className="text-sm text-white/60">
-        Code du salon : <span className="text-2xl tracking-[0.4em] text-iron-amber">{st.code}</span>
-        {' '}· {st.connected ? 'connecté' : 'connexion…'}
-        {st.ping !== null && <> · ping {st.ping} ms</>}
-      </p>
+    <Frame title="SALON" sub={`${MODES[mode].label} · ${st.connected ? 'CONNECTÉ' : 'CONNEXION…'}${st.ping !== null ? ` · PING ${st.ping} MS` : ''}`}>
+      <InviteCard code={st.code} />
       {st.error && <p className="text-sm text-red-400">{st.error}</p>}
 
-      <section className={`grid gap-3 ${size > 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2'}`}>
+      <Panel title="MODE DE JEU">
+        <div className="flex flex-wrap gap-2">
+          {ROOM_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              disabled={!isHost}
+              aria-pressed={mode === m}
+              onClick={() => onlineSetMode(m)}
+              className={`border px-3 py-2 text-left disabled:cursor-default ${mode === m ? 'border-iron-amber text-iron-amber' : 'border-white/20 text-white/70 enabled:hover:border-white/60'} ${!isHost && mode !== m ? 'opacity-40' : ''}`}
+            >
+              <div className="text-xs tracking-[0.2em]">{MODES[m].label}</div>
+              <div className="text-[10px] tracking-widest text-white/50">{MODES[m].players}</div>
+            </button>
+          ))}
+        </div>
+        <p className="font-body text-xs text-white/50">{MODES[mode].hint}{!isHost && ' Seul l\'hôte change le mode.'}</p>
+      </Panel>
+
+      <section className="grid gap-3 sm:grid-cols-2 short:grid-cols-4 short:gap-2">
         {seats.map((p, i) => (
-          <div key={i} className="border border-white/15 bg-black/40 p-4">
-            <div className="text-xs tracking-widest text-white/50">
-              PLACE {i + 1}{i === me ? ' (toi)' : ''}{p?.bot ? ' · BOT' : ''}{lobby?.team ? ` · ÉQUIPE ${i % 2 === 0 ? 'A' : 'B'}` : ''}
+          <div key={i} className={`border bg-black/40 p-4 short:p-2 ${i === me ? 'border-iron-amber/60' : 'border-white/15'}`}>
+            <div className="text-[10px] tracking-widest text-white/50">
+              PLACE {i + 1}{i === 0 ? ' · HÔTE' : ''}{i === me ? ' · TOI' : ''}{p?.bot ? ' · BOT' : ''}{mode === 'team' ? ` · ÉQUIPE ${i % 2 === 0 ? 'A' : 'B'}` : ''}
             </div>
             {p ? (
               <>
-                <div className="mt-1 text-lg tracking-widest">{p.name}</div>
-                <div className="text-sm text-white/70">{getCharacter(p.hero).name}</div>
+                <div className="mt-1 truncate text-lg tracking-widest short:text-sm">{p.name}</div>
+                <div className="text-sm text-white/70 short:text-xs">{getCharacter(p.hero).name}</div>
                 <div className={`mt-1 text-xs ${p.ready ? 'text-iron-cyan' : 'text-white/40'}`}>
                   {p.ready ? 'PRÊT' : 'pas prêt'}{!p.connected ? ' · déconnecté' : ''}
                 </div>
               </>
             ) : (
-              <div className="mt-1 text-sm text-white/40">Place libre…</div>
+              <div className="mt-1 text-sm text-white/30">Place libre</div>
             )}
           </div>
         ))}
       </section>
 
       {mine && (
-        <section className="space-y-2">
-          <h2 className="text-xs tracking-[0.35em] text-iron-cyan">Ton combattant</h2>
+        <Panel title="TON COMBATTANT">
           <div className="flex flex-wrap gap-2">
             {CHARACTER_IDS.filter((id) => unlocked.includes(id)).map((id) => (
               <button
@@ -147,17 +267,16 @@ function LobbyView() {
                 type="button"
                 aria-pressed={mine.hero === id}
                 onClick={() => onlineSetHero(id)}
-                className={`border px-3 py-2 text-sm tracking-widest ${mine.hero === id ? 'border-iron-amber text-iron-amber' : 'border-white/20 text-white/80'}`}
+                className={`border px-3 py-2 text-sm tracking-widest short:py-1 ${mine.hero === id ? 'border-iron-amber text-iron-amber' : 'border-white/20 text-white/80'}`}
               >
                 {getCharacter(id).name}
               </button>
             ))}
           </div>
-        </section>
+        </Panel>
       )}
 
-      <section className="space-y-2">
-        <h2 className="text-xs tracking-[0.35em] text-iron-cyan">Décor</h2>
+      <Panel title="DÉCOR">
         <div className="flex flex-wrap gap-2">
           {ARENA_IDS.map((a) => (
             <button
@@ -173,17 +292,18 @@ function LobbyView() {
           ))}
         </div>
         {!isHost && <p className="text-xs text-white/40">Seul l'hôte choisit le décor.</p>}
-      </section>
+      </Panel>
 
+      <p className={`text-sm ${countOk && allReady ? 'text-iron-cyan' : 'text-white/60'}`}>{status}</p>
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => onlineSetReady(!mine?.ready)} disabled={!mine}>
+        <Button primary={!mine?.ready} onClick={() => onlineSetReady(!mine?.ready)} disabled={!mine}>
           {mine?.ready ? 'PAS PRÊT' : 'PRÊT'}
         </Button>
         {isHost && (
           <>
-            <Button onClick={() => onlineBot(true)} disabled={!freeSeats}>+ BOT</Button>
+            <Button onClick={() => onlineBot(true)} disabled={!canAddBot}>+ BOT</Button>
             <Button onClick={() => onlineBot(false)} disabled={botCount === 0}>− BOT</Button>
-            <Button primary onClick={onlineStart} disabled={!allReady}>LANCER LE COMBAT</Button>
+            <Button primary onClick={onlineStart} disabled={!countOk || !allReady}>LANCER LE COMBAT</Button>
           </>
         )}
         <Button onClick={onlineLeave}>QUITTER</Button>
@@ -212,7 +332,7 @@ function ResultView() {
       : (winner == null ? 'ÉGALITÉ' : won ? 'VICTOIRE' : 'DÉFAITE');
   const name = (i: number) => lobby?.players[i]?.name ?? `Place ${i + 1}`;
   return (
-    <Frame title={title}>
+    <Frame title={title} sub={lobby ? MODES[lobby.mode].label : undefined}>
       {ffa || team ? (
         <ol className="space-y-1 text-sm">
           {[...(lobby?.placements ?? [])].reverse().map((id, rank) => (
@@ -226,12 +346,14 @@ function ResultView() {
         <p className="text-white/70">{name(st.slot)} contre {name(1 - st.slot)}</p>
       )}
       <p className="text-sm text-white/60">
-        Revanche : {myVote ? 'tu as voté' : 'en attente de ton vote'} · {votesDone}/{humans.length} humains prêts
+        Revanche : {myVote ? 'tu as voté' : 'en attente de ton vote'} · {votesDone}/{humans.length} joueurs prêts
       </p>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button primary onClick={onlineRematch} disabled={myVote}>REVANCHE</Button>
+        {st.slot === 0 && <Button onClick={onlineBackToLobby}>RETOUR AU SALON</Button>}
         <Button onClick={onlineLeave}>QUITTER LE SALON</Button>
       </div>
+      {st.slot !== 0 && <p className="text-xs text-white/40">L'hôte peut ramener tout le monde au salon (changer de mode, inviter d'autres joueurs).</p>}
     </Frame>
   );
 }

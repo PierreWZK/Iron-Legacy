@@ -46,13 +46,14 @@ export function helpSections(b: Bindings, characterId: string): HelpSection[] {
     {
       title: 'Commandes',
       lines: [
-        `${k('screenRight')} : avancer · ${k('screenLeft')} : reculer · ${k('intoScreen')} / ${k('towardScreen')} : pas de côté`,
+        `${k('screenLeft')} / ${k('screenRight')} : gauche / droite de l'écran · double appui vers l'adversaire (tenu) : sprint`,
+        `${k('jump')} : saut · ${k('crouch')} : accroupi · double appui ${k('jump')} ou ${k('crouch')} (tenu) : tourner autour de l'adversaire`,
         `${k('lp')} / ${k('rp')} : poing gauche / droit · ${k('lk')} / ${k('rk')} : pied gauche / droit`,
         `Direction + bouton = coup différent : avant, arrière, ${k('crouch')} (accroupi), ${k('crouch')} + avant`,
         `Ex. : ${k('crouch')} + ${k('lk')} = balayette · ${k('crouch')} + ${k('rk')} = balayage · avant + ${k('rk')} = coup de hache`,
         `${k('shift')} + avant (course) puis un bouton : charge ou coup volant`,
         `Deux boutons ensemble : projection (${k('lp')}+${k('rp')}, ${k('lp')}+${k('lk')}, ${k('rp')}+${k('rk')}, ${k('lk')}+${k('rk')})`,
-        `Arrière + ${k('lp')} : parade · ${k('shift')} + côté ou arrière : esquive · ${k('jump')} : saut`,
+        `Arrière + ${k('lp')} : parade · ${k('shift')} + côté ou arrière : esquive`,
         'Échap : pause et réglage des touches · Entrée : recommencer · T mannequin · I vie infinie',
       ],
     },

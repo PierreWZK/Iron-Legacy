@@ -23,7 +23,7 @@ export function Menu() {
     { label: 'HISTOIRE', hint: '8 chapitres, dialogues, boss final', run: storyOpen, accent: '#ffb020' },
     { label: 'COMBAT', hint: 'Duel rapide contre l\'IA', run: () => selectOpen('versus'), accent: '#ff4a3a' },
     { label: 'ARCADE', hint: 'Enchaîne les adversaires', run: arcadeOpen, accent: '#34e0ff' },
-    { label: 'EN LIGNE', hint: 'Duel, dernier debout, 2 contre 2', run: onlineOpen, accent: '#34e0ff' },
+    { label: 'EN LIGNE', hint: 'Duel, 1v1v1, dernier debout, 2 contre 2', run: onlineOpen, accent: '#34e0ff' },
     { label: 'ROBOTS', hint: 'Survie et défis', run: robotsOpen, accent: '#ffb020' },
     { label: 'ENTRAÎNEMENT', hint: 'Teste tes coups sur un mannequin', run: () => selectOpen('training'), accent: '#7dff9a' },
     { label: 'RÉGLAGES', hint: 'Difficulté, commandes tactiles, côté des attaques', run: () => useApp.setState({ screen: 'settings' }), accent: '#c9d4e3' },
