@@ -22,13 +22,20 @@ export const MOVE_IDS = [
   'throw', 'hipToss', 'suplex', 'legThrow',
   // Combos : 2e et 3e coup d'un enchaînement par bouton (ex. RK RK RK = roundhouse, rk2, rk3)
   'lp2', 'lp3', 'rp2', 'rp3', 'lk2', 'lk3', 'rk2', 'rk3',
+  // Après un double appui vers l'avant (élan) : + LP, RP (roulade), LK, RK (projection)
+  'dashLP', 'dashRP', 'dashLK', 'dashRK',
+  // Relevé : coups lancés depuis le sol (LK / RK pressé pendant la chute)
+  'wakeKick', 'wakeSweep',
 ] as const;
 
 /** Bouton d'attaque tel qu'utilisé dans les enchaînements. */
 export type ChainButton = 'lp' | 'rp' | 'lk' | 'rk';
 export const CHAIN_BUTTONS: readonly ChainButton[] = ['lp', 'rp', 'lk', 'rk'];
 
-export type MoveId = (typeof MOVE_IDS)[number];
+export type BaseMoveId = (typeof MOVE_IDS)[number];
+/** Coups générés pour les combos longs d'un personnage (`c0`, `c1`…, voir `combos.ts`). */
+export type ComboMoveId = `c${number}`;
+export type MoveId = BaseMoveId | ComboMoveId;
 
 /** Les 4 projections (voir `MoveDef.throw`). */
 export const THROW_IDS: readonly MoveId[] = ['throw', 'hipToss', 'suplex', 'legThrow'];
@@ -40,7 +47,7 @@ export type Limb =
   | 'punchL' | 'punchR' | 'hook' | 'risingHook' | 'backFist' | 'elbow' | 'uppercut' | 'lunge'
   | 'kickL' | 'kickR' | 'knee' | 'axe' | 'sideKick' | 'spinKick' | 'slide' | 'dragon'
   | 'tackle' | 'flying' | 'airPunch' | 'airElbow' | 'jumpKick' | 'airRound'
-  | 'throw' | 'hipToss' | 'suplex' | 'legThrow';
+  | 'throw' | 'hipToss' | 'suplex' | 'legThrow' | 'roll';
 
 /** Données d'un coup. Frames à 60 Hz : total = startup + active + recovery. */
 export interface MoveDef {
@@ -73,9 +80,11 @@ export interface MoveDef {
    * Combo : bouton pressé (sans direction) à partir de `chainFrame` → coup suivant. Marche même si le
    * coup a manqué ; un appui un peu en avance est mémorisé (buffer).
    */
-  chain?: Partial<Record<ChainButton, MoveId>>;
+  chain?: Partial<Record<string, MoveId>>;
   /** Frame à partir de laquelle l'enchaînement est possible (défaut : startup + active + 2). */
   chainFrame?: number;
+  /** Niveau d'accroupi de la pose (0 debout, 1 accroupi). */
+  crouch?: number;
   /** Projection : saisit l'adversaire puis joue une séquence. */
   throw?: boolean;
   /** Durée (ticks) de la séquence de projection après la prise. */
@@ -114,5 +123,20 @@ export interface CharacterDef {
   health: number;
   speeds: Speeds;
   look: Look;
-  moves: Record<MoveId, MoveDef>;
+  moves: Record<BaseMoveId, MoveDef> & Record<ComboMoveId, MoveDef>;
+  /** Liste des combos du personnage (rempli par `withCombos`). */
+  combos?: ComboDef[];
+}
+
+export type ComboTier = 'easy' | 'medium' | 'hard';
+
+/**
+ * Un combo : suite d'entrées. Chaque entrée = direction éventuelle + bouton, ex. `lp`, `f+rk`, `df+rp`, `u+lk`,
+ * ou `ff+rk` (double appui vers l'avant puis bouton). Les directions : f avant, b arrière, d bas, u haut (saut),
+ * df bas+avant, db bas+arrière.
+ */
+export interface ComboDef {
+  name: string;
+  tier: ComboTier;
+  inputs: string[];
 }

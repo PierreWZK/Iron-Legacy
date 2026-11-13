@@ -1,8 +1,8 @@
 import { BASE_MOVES } from './baseMoves';
-import type { CharacterDef, MoveDef, MoveId } from './types';
+import type { BaseMoveId, CharacterDef, MoveDef } from './types';
 
 /** Coup dérivé de la table de référence, réglé pour le robot. */
-function tune(id: MoveId, patch: Partial<MoveDef>): MoveDef {
+function tune(id: BaseMoveId, patch: Partial<MoveDef>): MoveDef {
   return { ...BASE_MOVES[id], ...patch };
 }
 

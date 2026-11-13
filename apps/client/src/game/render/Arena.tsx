@@ -1,3 +1,4 @@
+import { SkyDome, Stars } from './arenas/atmosphere';
 import { ARENA_RADIUS } from '@iron/engine';
 import { useMemo } from 'react';
 import * as THREE from 'three';
@@ -14,9 +15,13 @@ export function Arena() {
 
   return (
     <group>
-      <color attach="background" args={['#0b0d12']} />
-      <fog attach="fog" args={['#0b0d12', 16, 42]} />
-      <ambientLight intensity={0.35} color="#8fa3c7" />
+      <color attach="background" args={['#1a2236']} />
+      <fog attach="fog" args={['#2a3350', 18, 48]} />
+      <SkyDome top="#2a3a66" horizon="#d89a6a" />
+      <Stars />
+      <hemisphereLight args={['#c8d4f0', '#3a2e24', 0.9]} />
+      <directionalLight position={[-6, 5, -9]} intensity={1.4} color="#ffb870" />
+      <ambientLight intensity={0.7} color="#a8b8d8" />
       <directionalLight
         position={[5, 12, 6]}
         intensity={2.2}

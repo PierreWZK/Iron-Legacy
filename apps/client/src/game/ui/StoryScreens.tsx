@@ -106,18 +106,18 @@ function DialogueView() {
         </div>
       </div>
 
-      <button type="button" onClick={advance} aria-label="Réplique suivante" className="absolute inset-x-0 bottom-0 z-20 h-[34%] w-full cursor-pointer px-[6%] pb-[4%] text-left">
-        <div className="relative h-full -skew-x-3 border-2 bg-black/80 px-8 py-5 backdrop-blur-sm" style={{ borderColor: accent, boxShadow: `0 0 36px -10px ${accent}` }}>
+      <button type="button" onClick={advance} aria-label="Réplique suivante" className="absolute inset-x-0 bottom-0 z-20 h-[34%] w-full cursor-pointer px-[6%] pb-[4%] text-left short:h-[38%] short:pb-[2%]">
+        <div className="relative h-full -skew-x-3 border-2 bg-black/80 px-8 py-5 backdrop-blur-sm short:px-5 short:py-3" style={{ borderColor: accent, boxShadow: `0 0 36px -10px ${accent}` }}>
           {speaker && (
-            <div className="absolute -top-5 left-6 -skew-x-6 px-5 py-1 font-display text-lg tracking-[0.2em] text-black" style={{ background: accent }}>
+            <div className="absolute -top-5 left-6 -skew-x-6 px-5 py-1 font-display text-lg tracking-[0.2em] text-black short:-top-4 short:py-0.5 short:text-sm" style={{ background: accent }}>
               {speaker.name}
             </div>
           )}
-          <p className={`mt-1 max-w-4xl text-lg leading-relaxed sm:text-2xl ${who === 'narr' ? 'italic text-white/75' : 'text-white'}`}>
+          <p className={`mt-1 max-w-4xl text-lg leading-relaxed sm:text-2xl short:text-base short:leading-snug ${who === 'narr' ? 'italic text-white/75' : 'text-white'}`}>
             {tw.shown}
             <span className="opacity-0">{text.slice(tw.shown.length)}</span>
           </p>
-          <span className="absolute bottom-3 right-6 animate-pulse font-display text-xs tracking-[0.3em]" style={{ color: accent }}>
+          <span className="absolute bottom-3 right-6 animate-pulse font-display text-xs tracking-[0.3em] short:bottom-1.5 short:text-[10px]" style={{ color: accent }}>
             {tw.done ? (last ? 'COMBATTRE ▶' : 'SUIVANT ▶') : '…'}
           </span>
         </div>

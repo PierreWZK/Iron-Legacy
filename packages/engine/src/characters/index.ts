@@ -34,5 +34,5 @@ export function getCharacter(id: string): CharacterDef {
 }
 
 export function getMove(characterId: string, move: MoveId): MoveDef {
-  return getCharacter(characterId).moves[move];
+  return getCharacter(characterId).moves[move]!;
 }

@@ -130,8 +130,8 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
       { pos: [9, 3.6, 9], color: '#6ab8ff', intensity: 14 },
     ],
     layers: [
-      { kind: 'building', count: 36, rMin: FAR + 2, rMax: 44, scale: [1.0, 1.6], colors: col(0x1c2030, 0, 0xffd27a) },
-      { kind: 'building', count: 14, rMin: FAR + 2, rMax: 44, scale: [1.0, 1.6], colors: col(0x241c30, 0, 0x7ad2ff) },
+      { kind: 'building', count: 36, rMin: FAR + 2, rMax: 44, scale: [1.0, 1.6], colors: col(0x3a4468, 0, 0xffe0a0) },
+      { kind: 'building', count: 14, rMin: FAR + 2, rMax: 44, scale: [1.0, 1.6], colors: col(0x4a3c68, 0, 0x9ae0ff) },
       { kind: 'lamp', count: 12, rMin: 10, rMax: 17, scale: [1.0, 1.1], colors: col(0, 0x4a4e5a, 0xffc880) },
       { kind: 'barrel', count: 8, rMin: 10, rMax: 16, scale: [1.0, 1.2], colors: col(0x6a2a2a, 0x8a8e9a) },
       { kind: 'crate', count: 8, rMin: 10, rMax: 16, scale: [0.9, 1.3], colors: col(0x5a4a38, 0x3a2e24) },
@@ -142,8 +142,8 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
     ambient: ['#6a7a9a', 0.5], sun: ['#9ab0d8', 0.9], rain: true,
     points: [{ pos: [0, 4, -8], color: '#ff5a6a', intensity: 12 }],
     layers: [
-      { kind: 'building', count: 44, rMin: FAR + 3, rMax: 46, scale: [1.0, 1.8], colors: col(0x161a26, 0, 0xffd27a) },
-      { kind: 'tower', count: 8, rMin: FAR, rMax: 36, scale: [1.0, 1.5], colors: col(0x2a2e3a, 0x4a4e5a, 0xff4a5a) },
+      { kind: 'building', count: 44, rMin: FAR + 3, rMax: 46, scale: [1.0, 1.8], colors: col(0x3c4868, 0, 0xffe0a0) },
+      { kind: 'tower', count: 8, rMin: FAR, rMax: 36, scale: [1.0, 1.5], colors: col(0x4a5068, 0x6a7088, 0xff6a7a) },
       { kind: 'machine', count: 10, rMin: 11, rMax: 17, scale: [0.9, 1.2], colors: col(0x3a3e48, 0x5a5e68, 0xff4a5a) },
       { kind: 'barrel', count: 6, rMin: 10, rMax: 16, scale: [1.0, 1.2], colors: col(0x4a4e5a, 0x6a6e7a) },
     ],

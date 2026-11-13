@@ -22,7 +22,28 @@ const PROFILES: Record<number, Profile> = {
   5: { react: 0.9, attack: 0.15, block: 0.9, chain: 0.16 },
   6: { react: 0.95, attack: 0.19, block: 0.97, chain: 0.2 },
   7: { react: 0.99, attack: 0.23, block: 1, chain: 0.24 },
+  // Impossible : réagit à tout, attaque sans cesse, enchaîne ses combos jusqu'au bout.
+  8: { react: 1, attack: 0.3, block: 1, chain: 0.4 },
 };
+
+/** Plus haut niveau d'IA (« impossible »). */
+export const AI_MAX_LEVEL = 8;
+
+const TOKEN_DIR: Record<string, number> = {
+  '': 0, f: Btn.Fwd, b: Btn.Back, d: Btn.Crouch, u: Btn.Jump, df: Btn.Crouch | Btn.Fwd, db: Btn.Crouch | Btn.Back,
+};
+const TOKEN_BTN: Record<string, number> = { lp: Btn.LP, rp: Btn.RP, lk: Btn.LK, rk: Btn.RK };
+
+/** Entrée d'un jeton de combo (`f+rk`, `lp`…) relative au combattant. */
+function tokenInput(token: string): number {
+  const [dir, btn] = token.includes('+') ? token.split('+') : ['', token];
+  return (TOKEN_DIR[dir!] ?? 0) | (TOKEN_BTN[btn!] ?? 0);
+}
+
+/** Chance par tick de poursuivre un combo selon le niveau (0 = jamais : niveaux 1 et 2). */
+function comboChance(level: number): number {
+  return level < 3 ? 0 : Math.min(0.6, 0.08 * level);
+}
 
 const BUTTONS = [Btn.LP, Btn.RP, Btn.LK, Btn.RK] as const;
 
@@ -87,7 +108,7 @@ export function aiInput(w: World, self: Fighter, opp: Fighter, level: number, ra
   // Tirages : générateur fourni (bots du serveur) ou RNG du monde (IA locale).
   const r = rand ?? (() => nextRandom(w));
   if (w.match.phase !== 'fight' || self.stun > 0) return 0;
-  const base = PROFILES[Math.min(7, Math.max(1, Math.round(level)))]!;
+  const base = PROFILES[Math.min(AI_MAX_LEVEL, Math.max(1, Math.round(level)))]!;
   const style = getCharacter(self.characterId).aiStyle ?? 'balanced';
   const k = STYLE[style];
   const p: Profile = {
@@ -100,6 +121,18 @@ export function aiInput(w: World, self: Fighter, opp: Fighter, level: number, ra
   if (self.action === 'attack' && self.move) {
     const m = getMove(self.characterId, self.move);
     const recovering = self.moveFrame > m.startup + m.active;
+    // Combos du personnage : on suit un lien du coup en cours (n'importe quel chemin de l'arbre est un vrai combo).
+    // Un appui tôt est mémorisé par la sim : pas besoin d'attendre la fenêtre.
+    const links = m.chain ? Object.keys(m.chain) : [];
+    if (links.length > 0 && self.buffer === 0 && r() < comboChance(level)) {
+      // Niveaux 3-4 : enchaînements sans direction (triple appui) ; à partir de 5 : tous les combos.
+      const allowed = level >= 5 ? links : links.filter((t) => !t.includes('+'));
+      if (allowed.length > 0) {
+        const bits = tokenInput(allowed[Math.floor(r() * allowed.length)]!);
+        const buttons = bits & (Btn.LP | Btn.RP | Btn.LK | Btn.RK);
+        return (self.prevInput & buttons) !== 0 ? 0 : bits;
+      }
+    }
     const canChain = !m.throw && ((m.cancel && self.moveHit) || (m.string === true && recovering));
     if (canChain && r() < p.chain) {
       const btn = BUTTONS[Math.floor(r() * BUTTONS.length)]!;

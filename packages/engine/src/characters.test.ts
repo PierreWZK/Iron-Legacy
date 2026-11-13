@@ -6,7 +6,7 @@ describe('roster', () => {
     for (const id of Object.keys(ROSTER)) {
       const ch = getCharacter(id);
       for (const move of MOVE_IDS) {
-        const m = ch.moves[move as MoveId];
+        const m = ch.moves[move as MoveId]!;
         expect(m, `${id}.${move}`).toBeDefined();
         expect(m.startup, `${id}.${move} startup`).toBeGreaterThan(0);
         expect(m.active, `${id}.${move} active`).toBeGreaterThan(0);
@@ -19,7 +19,7 @@ describe('roster', () => {
     for (const ch of Object.values(ROSTER)) {
       for (const move of MOVE_IDS) {
         const m = ch.moves[move];
-        expect(Boolean(m.throw), `${ch.id}.${move}`).toBe(THROW_IDS.includes(move));
+        expect(Boolean(m.throw), `${ch.id}.${move}`).toBe(THROW_IDS.includes(move) || move === 'dashRK');
         if (m.throw) {
           expect(m.sequence, `${ch.id}.${move} sequence`).toBeGreaterThan(20);
           expect(m.landing, `${ch.id}.${move} landing`).toBeDefined();

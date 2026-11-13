@@ -29,7 +29,7 @@ export function SlantButton({
       onClick={onClick}
       disabled={disabled}
       style={style}
-      className={`group relative -skew-x-12 border-2 font-display tracking-[0.18em] transition-all duration-150 ${small ? 'px-5 py-2 text-xs' : 'px-8 py-3 text-base'} ${
+      className={`group relative -skew-x-12 border-2 font-display tracking-[0.18em] transition-all duration-150 ${small ? 'px-5 py-2 text-xs short:px-3 short:py-1' : 'px-8 py-3 text-base short:px-4 short:py-1.5 short:text-xs'} ${
         disabled
           ? 'cursor-not-allowed border-white/10 bg-black/40 text-white/25'
           : primary
@@ -58,8 +58,8 @@ export function StatBar({ label, value, accent }: { label: string; value: number
 export function Title({ children, sub }: { children: ReactNode; sub?: string }) {
   return (
     <div className="anim-left">
-      <h1 className="font-display text-3xl italic tracking-[0.15em] text-white drop-shadow-[0_3px_0_rgba(0,0,0,0.6)] sm:text-4xl">{children}</h1>
-      {sub && <p className="mt-1 text-xs tracking-[0.3em] text-[var(--accent)]">{sub}</p>}
+      <h1 className="font-display text-3xl italic tracking-[0.15em] text-white drop-shadow-[0_3px_0_rgba(0,0,0,0.6)] sm:text-4xl short:text-xl">{children}</h1>
+      {sub && <p className="mt-1 text-xs tracking-[0.3em] text-[var(--accent)] short:mt-0 short:text-[10px]">{sub}</p>}
     </div>
   );
 }

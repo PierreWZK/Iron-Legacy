@@ -972,3 +972,56 @@ Typecheck et build OK. Émulation 812x375 : menu, combat avec commandes, tap sur
 ### Non vérifié
 
 Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos au doigt). Écrans de sélection, arcade, compte, en ligne : seulement lisibles, pas adaptés au téléphone. Pas de plein écran. L'aide texte est masquée sur tactile.
+
+---
+
+## 25. Session 18 : combos étendus, double appui, indicateur de touches (en cours)
+
+### Fait
+
+- **Combos** (`engine/characters/combos.ts`) : 20 par personnage (7 faciles 3-4 entrées, 7 moyens 5-6, 6 difficiles 8-10), générés de façon déterministe d'après le style, noms propres par personnage, aucun doublon entre personnages. Entrées avec directions : `f`, `b`, `d`, `u`, `df`, `db`, `ff` (double appui avant). Tests : `comboList.test.ts`.
+- **Double appui avant / arrière** : pas lancé (`dash`). `ff+lp` frappe lancée, `ff+rp` roulade offensive, `ff+lk` coup de pied lancé, `ff+rk` projection.
+- **Coups au sol** : LK ou RK pressé pendant la chute → `wakeKick` / `wakeSweep` au relevé.
+- **Liste des combos** : bouton COMBOS dans le menu pause (`ui/ComboList.tsx`).
+- **Indicateur de touches** PC bas-droite (`ui/KeyPad.tsx`).
+- **Sprint tactile** : double geste sur la croix (320 ms) = maintien de `shift`.
+
+### Non fait
+
+- Cartes plus claires (Shin, histoire) : pas commencé.
+- Trois victoires par personnage (manche, partie, défaite) : pas commencé.
+- L'IA n'utilise pas les nouveaux combos.
+- Passer derrière l'adversaire (côté inversé au départ) : pas commencé.
+- Le double geste tactile est relatif à l'écran, pas au sens de la face du combattant : faux si le combattant regarde à gauche.
+- Pas de test navigateur de ce tour (connexion coupée).
+
+### Session 18 suite : fins de combat
+
+- **Victoire de manche, victoire de partie, défaite** : `render/pose.ts` (`endPose`). Victoire de manche = poing levé qui pompe ; victoire de partie = deux bras levés, sautillement ; défaite = tête basse, genoux pliés, à genoux. Tempo et ampleur viennent du style du personnage (`ANIM_STYLES`).
+- Limite : même forme de pose pour tous, seul le tempo et l'ampleur changent. Pas de geste unique par personnage.
+- Vérifié à l'écran par forçage d'état (KO, `matchWinner`) : « VICTOIRE » avec bras levés, « DÉFAITE » avec corps affaissé. Pas vérifié en mouvement réel.
+
+### Session 18 suite : cartes
+
+- Tous les décors ont une ambiance (`render/arenas/looks.ts`, `atmosphere.tsx`) : ciel dégradé (`SkyDome`), étoiles, lumière hémisphérique, contre-jour coloré, lumière centrale sur les combattants, brouillard teinté comme l'horizon, exposition par décor, particules (lucioles, feuilles, pétales, neige, braises, poussière, étincelles). Toit de Shin, rue, labo, forteresse, usine éclaircis ; immeubles plus clairs avec fenêtres lumineuses. Dojo (`render/Arena.tsx`) : même ciel et mêmes lumières.
+- Vérifié à l'écran : toit de Shin (ciel étoilé, immeubles bleus lisibles), dojo (coucher de soleil). Pas relu à l'écran : les dix autres décors (forêt, automne, canyon, neige, toundra, labo, forteresse, rue, usine, temple, désert).
+- Pas de nouveaux éléments de décor (formes) : seulement lumière, ciel et particules.
+
+### Session 18 suite : départ inversé (passer derrière l'adversaire)
+
+- La caméra ne tourne plus : la droite de l'écran est toujours +X (`VIEW_AXIS` dans `runtime.ts`). Les touches sont lues sur l'écran puis projetées sur l'avant du combattant, qui se tourne toujours vers l'adversaire. En tournant autour de lui (pas de côté : Z/S, FOND/ÉCRAN au tactile), on passe derrière et on se retrouve à droite de l'écran.
+- Caméra un peu plus haute (2,5 m) pour lire la profondeur quand les combattants sont alignés avec la vue.
+- En ligne, l'axe est maintenant le même pour les deux joueurs : le joueur 2 (à droite de l'écran) avance avec la touche gauche. Avant, ses touches étaient miroir. Pas testé à deux machines.
+- Tests : `behind.test.ts`. Vérifié à l'écran : le pas de côté fait tourner P1 autour de P2, face à lui. Le demi-tour complet n'a pas été vu à l'écran (trop lent à 6 images/s), seulement en test moteur.
+
+### Session 18 suite : IA et difficulté
+
+- **L'IA fait des combos** (`engine/ai.ts`) : pendant un coup, elle suit un lien `chain` du coup en cours (tout chemin de l'arbre est un vrai combo). Niveaux 1-2 : rien de nouveau ; 3-4 : triple appui seulement ; 5 et plus : tous les combos, directions comprises. Nouveau niveau 8 « impossible » (`AI_MAX_LEVEL`). Tests : `aiCombo.test.ts`.
+- **Réglage « Niveau des adversaires »** (Réglages, menu principal et pause) : facile (-2), moyen (0), difficile (+2), impossible (niveau 8 partout). Appliqué dans `runtime.start` à tous les combats contre l'ordinateur (arcade, histoire, robots, combat rapide), en plus du niveau prévu par le mode. Sauvegardé dans le navigateur (`iron-legacy.ai`). `game/difficulty.ts`.
+- Limites : l'IA ne fait pas de double appui (pas de roulade ni de projection lancée) ; le réglage changé pendant un combat vaut au combat suivant ; les bots en ligne du serveur ne lisent pas ce réglage.
+
+### Session 18 suite : téléphone à l'horizontale
+
+- Variante Tailwind `short:` (`index.css`) = écran de moins de 520 px de haut (téléphone à l'horizontale). Utilisée pour compacter : boutons (`SlantButton`), titres (`Title`), menu pause (2 colonnes, défilable : QUITTER LE COMBAT visible), sélection de personnage (fiche réduite à gauche, aperçu 3D à droite, 12 vignettes sur une ligne), dialogue de l'histoire, panneau d'aide (défilable), HUD (portraits, horloge), bannières, commandes tactiles.
+- La liste des combos affiche les boutons tactiles (POING G…) quand les commandes tactiles sont actives.
+- Vérifié en 812x375 : menu, sélection, choix du mannequin, combat tactile, pause, liste des combos, histoire (sélection, narration, dialogue), arcade et robots (défilent), écran de fin. Pas vérifié : en ligne, compte, VS, écrans de fin d'histoire. Pas testé sur un vrai téléphone.

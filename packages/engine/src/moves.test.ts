@@ -44,7 +44,7 @@ describe('coups par direction + bouton', () => {
       [Btn.Crouch | Btn.Fwd, 'crouch', false], [Btn.Fwd | Btn.Shift, 'stand', true], [0, 'air', false],
     ];
     for (const [dir, stance, run] of contexts) for (const m of ids(dir, stance, run)) if (m) reachable.add(m);
-    const expected = MOVE_IDS.filter((m) => !THROW_IDS.includes(m) && !/^(lp|rp|lk|rk)[23]$/.test(m)); // les combos passent par la chaîne (combos.test.ts)
+    const expected = MOVE_IDS.filter((m) => !THROW_IDS.includes(m) && !/^(lp|rp|lk|rk)[23]$|^dash|^wake/.test(m)); // les combos passent par la chaîne (combos.test.ts)
     expect([...reachable].sort()).toEqual([...expected].sort());
   });
 

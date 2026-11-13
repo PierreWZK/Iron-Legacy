@@ -25,6 +25,12 @@ export const DODGE_TICKS = 20;
 export const DODGE_MOVE_TICKS = 12;
 /** Frames pendant lesquelles l'esquive rend invulnérable. */
 export const DODGE_INVULN = 12;
+/** Double appui avant / arrière : fenêtre (ticks) et pas lancé. */
+export const DOUBLE_TAP_TICKS = 14;
+export const DASH_TICKS = 16;
+export const DASH_MOVE_TICKS = 10;
+export const DASH_FWD_SPEED = 8.4;
+export const DASH_BACK_SPEED = 6.6;
 export const PARRY_TICKS = 16;
 /** Fenêtre de parade active (frames depuis le début de la garde). */
 export const PARRY_WINDOW = 8;
