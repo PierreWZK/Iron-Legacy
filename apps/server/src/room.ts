@@ -57,6 +57,8 @@ export class FightRoom extends Room {
   private placements: number[] = [];
   private pending: Map<number, number>[] = [];
   private last: number[] = [];
+  /** Tick de la dernière entrée en retard prise en compte (une entrée plus ancienne encore est ignorée). */
+  private lateT: number[] = [];
   /** Tirages des bots : séparés du RNG du monde, pour que les clients restent synchronisés. */
   private botRng = makeRng(1);
 
@@ -67,6 +69,7 @@ export class FightRoom extends Room {
     this.rematch = Array.from({ length: this.size }, () => false);
     this.pending = Array.from({ length: this.size }, () => new Map<number, number>());
     this.last = Array.from({ length: this.size }, () => 0);
+    this.lateT = Array.from({ length: this.size }, () => -1);
     this.maxClients = this.size;
     this.setMetadata({ code: this.code });
     this.onMessage('hero', (client, msg: { hero?: unknown }) => this.onHero(client, msg));
@@ -276,9 +279,19 @@ export class FightRoom extends Room {
     if (slot < 0 || !this.running || !this.world) return;
     const t = Number(msg.t);
     const i = Number(msg.i);
-    if (!Number.isInteger(t) || !Number.isInteger(i) || t < this.world.tick) return; // trop ancien : ignoré
+    if (!Number.isInteger(t) || !Number.isInteger(i)) return;
     // Les bits invalides sont tronqués aux 11 boutons connus.
-    this.pending[slot]!.set(t, i & 0x7ff);
+    const bits = i & 0x7ff;
+    if (t < this.world.tick) {
+      // En retard (réseau) : appliquée au prochain tick plutôt que perdue. Sinon un relâchement de touche
+      // perdu laisserait le combattant marcher tout seul chez les autres joueurs.
+      if (t >= this.lateT[slot]!) {
+        this.lateT[slot] = t;
+        if (!this.pending[slot]!.has(this.world.tick)) this.last[slot] = bits;
+      }
+      return;
+    }
+    this.pending[slot]!.set(t, bits);
   }
 
   private onRematch(client: Client): void {
@@ -305,6 +318,7 @@ export class FightRoom extends Room {
     this.rematch = seats.map(() => false);
     this.pending = seats.map(() => new Map<number, number>());
     this.last = seats.map(() => 0);
+    this.lateT = seats.map(() => -1);
     this.botRng = makeRng(this.seq * 7919 + 17);
     for (const client of this.clients) {
       const slot = this.slotOf(client.sessionId);
