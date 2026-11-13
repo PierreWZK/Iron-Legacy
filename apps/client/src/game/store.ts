@@ -60,7 +60,7 @@ export const useHud = create<HudState>(() => ({
   team: false,
 }));
 
-export type Screen = 'menu' | 'select' | 'vs' | 'fight' | 'arcade' | 'story' | 'robots' | 'online' | 'account';
+export type Screen = 'menu' | 'select' | 'vs' | 'fight' | 'arcade' | 'story' | 'robots' | 'online' | 'account' | 'settings';
 
 export interface AppState {
   screen: Screen;

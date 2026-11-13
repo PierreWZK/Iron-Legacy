@@ -11,10 +11,11 @@ import { useRobots } from '../robots/session';
 import { useStory } from '../story/session';
 import { toggleHelp, useHelp } from './help';
 import { SlantButton } from './kit';
+import { SettingsPanel } from './Settings';
 
 interface PauseState {
   open: boolean;
-  view: 'menu' | 'keys';
+  view: 'menu' | 'keys' | 'settings';
   /** Emplacement de touche en attente d'une touche du clavier. */
   capturing: { action: Action; slot: number } | null;
 }
@@ -35,7 +36,7 @@ export function closePause(): void {
 export function escapePressed(): void {
   const s = usePause.getState();
   if (s.capturing) usePause.setState({ capturing: null });
-  else if (s.open && s.view === 'keys') usePause.setState({ view: 'menu' });
+  else if (s.open && s.view !== 'menu') usePause.setState({ view: 'menu' });
   else if (s.open) closePause();
   else openPause();
 }
@@ -128,12 +129,19 @@ export function PauseMenu() {
       <div className="anim-pop border-l-8 border-iron-amber bg-black/85 px-8 py-6 shadow-[0_0_60px_-10px_#ffb020]">
         {view === 'keys' ? (
           <KeysView />
+        ) : view === 'settings' ? (
+          <div className="space-y-4">
+            <h2 className="font-display text-2xl italic tracking-widest text-white">RÉGLAGES</h2>
+            <SettingsPanel />
+            <SlantButton small onClick={() => usePause.setState({ view: 'menu' })}>RETOUR</SlantButton>
+          </div>
         ) : (
           <div className="flex min-w-72 flex-col gap-3">
             <h2 className="font-display text-4xl italic tracking-widest text-iron-amber">{online ? 'MENU' : 'PAUSE'}</h2>
             {online && <p className="max-w-64 text-xs text-white/55">En ligne : le combat continue pendant que ce menu est ouvert.</p>}
             <SlantButton primary onClick={closePause}>REPRENDRE</SlantButton>
-            <SlantButton onClick={() => usePause.setState({ view: 'keys' })}>COMMANDES</SlantButton>
+            <SlantButton onClick={() => usePause.setState({ view: 'keys' })}>COMMANDES CLAVIER</SlantButton>
+            <SlantButton onClick={() => usePause.setState({ view: 'settings' })}>RÉGLAGES TACTILES</SlantButton>
             <SlantButton onClick={toggleHelp}>AIDE : {help ? 'AFFICHÉE' : 'MASQUÉE'}</SlantButton>
             {canRestart && <SlantButton onClick={() => { closePause(); startFight(); }}>RECOMMENCER</SlantButton>}
             <SlantButton onClick={() => { closePause(); quitFight(); }}>QUITTER LE COMBAT</SlantButton>

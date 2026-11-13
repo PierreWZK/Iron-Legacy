@@ -12,6 +12,8 @@ import { runtime } from '../runtime';
 import { ARCADE_STAGES, getChallenge, getCharacter, storyOpponents, waveSetup } from '@iron/engine';
 import { accentOf, Portrait } from './Portrait';
 import { SlantButton } from './kit';
+import { TouchControls } from './TouchControls';
+import { useTouchEnabled } from '../input/touch';
 
 const useArenaRobot = (wave: number): string => waveSetup(wave).robot;
 
@@ -156,6 +158,7 @@ export function Hud() {
   const robots = useRobots();
   const help = useHelp((s) => s.open);
   const bindings = useBindings((s) => s.bindings);
+  const touch = useTouchEnabled();
   const [debug, setDebug] = useState(false);
   const comboCount = h.combo[0] >= h.combo[1] ? h.combo[0] : h.combo[1];
   const comboSide = h.combo[0] >= h.combo[1] ? 'left' : 'right';
@@ -209,7 +212,9 @@ export function Hud() {
       {story.active && <Tag color="#34e0ff">HISTOIRE · CHAPITRE {story.chapter + 1} / 8 · {getCharacter(storyOpponents(story.hero)[story.chapter]!).name}</Tag>}
       {h.infinite && mode === 'training' && <Tag color="#34e0ff">{t.hud.infinite}</Tag>}
 
-      <div className="pointer-events-none absolute bottom-3 left-4 flex max-w-[min(46rem,92vw)] flex-col items-start gap-2">
+      <TouchControls />
+
+      <div className={`pointer-events-none absolute bottom-3 left-4 ${touch ? 'hidden' : 'flex'} max-w-[min(46rem,92vw)] flex-col items-start gap-2`}>
         {help && (
           <div className="anim-up grid gap-x-6 gap-y-2 border-l-4 border-iron-cyan bg-black/75 p-3 text-xs leading-relaxed text-white/85 md:grid-cols-2">
             {helpSections(bindings, ids[0]!).map((sec) => (

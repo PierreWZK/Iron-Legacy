@@ -1,6 +1,7 @@
 import { Btn, type Fighter, type InputFrame } from '@iron/engine';
 
 import { useBindings, type Action } from './bindings';
+import { touchHeld, touchTapped } from './touch';
 
 /** Axe de combat : vecteur unitaire (x,z) de P1 vers P2. Droite de l'écran = cet axe. */
 export interface Axis {
@@ -36,12 +37,14 @@ export class KeyboardInput {
   }
 
   private held(a: Action): boolean {
-    return useBindings.getState().bindings[a].some((k) => this.down.has(k) || this.pressedSinceSample.has(k));
+    return touchHeld.has(a) || touchTapped.has(a)
+      || useBindings.getState().bindings[a].some((k) => this.down.has(k) || this.pressedSinceSample.has(k));
   }
 
   /** Oublie les appuis en attente (pendant la pause, pour qu'ils ne partent pas à la reprise). */
   discard(): void {
     this.pressedSinceSample.clear();
+    touchTapped.clear();
   }
 
   /** Consomme un touche « pressée » (pour les raccourcis hors combat : T, Entrée). */
@@ -77,6 +80,7 @@ export class KeyboardInput {
     if (this.held('lk')) i |= Btn.LK;
     if (this.held('rk')) i |= Btn.RK;
     this.pressedSinceSample.clear();
+    touchTapped.clear();
     return i;
   }
 }

@@ -5,6 +5,7 @@ import { OnlineScreen } from './game/ui/OnlineScreens';
 import { AccountScreen } from './game/ui/AccountScreens';
 import { RobotScreen } from './game/ui/RobotScreens';
 import { ArcadeScreen } from './game/ui/ArcadeScreens';
+import { SettingsScreen } from './game/ui/Settings';
 import { Hud } from './game/ui/Hud';
 import { Menu } from './game/ui/Menu';
 import { Screen } from './game/ui/kit';
@@ -32,7 +33,7 @@ export function App() {
         quitFight();
       } else if (current === 'select') {
         selectBack();
-      } else if (current === 'account') {
+      } else if (current === 'account' || current === 'settings') {
         backToMenu();
       } else if (current === 'online') {
         onlineLeave();
@@ -55,6 +56,7 @@ export function App() {
   if (screen === 'story') return <div className="h-full w-full bg-iron-bg"><StoryScreen /></div>;
   if (screen === 'robots') return <Screen><RobotScreen /></Screen>;
   if (screen === 'account') return <Screen><AccountScreen /></Screen>;
+  if (screen === 'settings') return <Screen><SettingsScreen /></Screen>;
   if (screen === 'online') return <Screen><OnlineScreen /></Screen>;
   return (
     <div className="relative h-full w-full">

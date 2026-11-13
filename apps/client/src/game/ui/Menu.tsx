@@ -26,6 +26,7 @@ export function Menu() {
     { label: 'EN LIGNE', hint: 'Duel, dernier debout, 2 contre 2', run: onlineOpen, accent: '#34e0ff' },
     { label: 'ROBOTS', hint: 'Survie et défis', run: robotsOpen, accent: '#ffb020' },
     { label: 'ENTRAÎNEMENT', hint: 'Teste tes coups sur un mannequin', run: () => selectOpen('training'), accent: '#7dff9a' },
+    { label: 'RÉGLAGES', hint: 'Commandes tactiles, côté des attaques', run: () => useApp.setState({ screen: 'settings' }), accent: '#c9d4e3' },
     { label: 'COMPTE', hint: 'Sauvegarde et classement', run: () => useApp.setState({ screen: 'account' }), accent: '#c9d4e3' },
   ], []);
   const [sel, setSel] = useState(0);
@@ -57,13 +58,13 @@ export function Menu() {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent" />
 
-      <main className="relative flex h-full flex-col justify-between px-8 py-8 sm:px-14">
+      <main className="relative flex h-full flex-col justify-between px-8 py-8 sm:px-14 [@media(max-height:520px)]:py-3">
         <header className="anim-left">
-          <div className="font-display text-6xl italic leading-[0.9] tracking-wide logo-text sm:text-8xl">IRON<br />LEGACY</div>
-          <div className="mt-3 text-xs tracking-[0.5em] text-white/60">COMBAT 3D · HELIX · TITAN-01</div>
+          <div className="font-display text-6xl italic leading-[0.9] tracking-wide logo-text sm:text-8xl [@media(max-height:520px)]:text-4xl [@media(max-height:520px)]:leading-none">IRON<br />LEGACY</div>
+          <div className="mt-3 text-xs tracking-[0.5em] text-white/60 [@media(max-height:520px)]:hidden">COMBAT 3D · HELIX · TITAN-01</div>
         </header>
 
-        <nav aria-label="Modes de jeu" className="flex flex-col items-start gap-2.5">
+        <nav aria-label="Modes de jeu" className="flex flex-col items-start gap-2.5 [@media(max-height:520px)]:grid [@media(max-height:520px)]:grid-cols-2 [@media(max-height:520px)]:justify-items-start [@media(max-height:520px)]:gap-x-4 [@media(max-height:520px)]:gap-y-1">
           {items.map((it, i) => {
             const on = i === sel;
             return (
@@ -77,7 +78,7 @@ export function Menu() {
                 style={{ animationDelay: `${i * 55}ms`, transform: on ? 'translateX(18px) skewX(-12deg)' : undefined }}
               >
                 <span
-                  className="block border-l-8 px-6 py-2 font-display text-2xl tracking-[0.12em] transition-colors sm:text-3xl"
+                  className="block border-l-8 px-6 py-2 font-display text-2xl tracking-[0.12em] transition-colors sm:text-3xl [@media(max-height:520px)]:py-1 [@media(max-height:520px)]:text-base"
                   style={{
                     borderColor: it.accent,
                     background: on ? it.accent : 'rgba(0,0,0,0.55)',
@@ -90,10 +91,10 @@ export function Menu() {
               </button>
             );
           })}
-          <p className="mt-2 h-5 pl-2 text-sm tracking-widest" style={{ color: cur.accent }}>{cur.hint}</p>
+          <p className="mt-2 h-5 pl-2 text-sm tracking-widest [@media(max-height:520px)]:hidden" style={{ color: cur.accent }}>{cur.hint}</p>
         </nav>
 
-        <footer className="text-[10px] tracking-[0.3em] text-white/40">↑ ↓ POUR CHOISIR · ENTRÉE POUR VALIDER</footer>
+        <footer className="text-[10px] tracking-[0.3em] text-white/40 [@media(max-height:520px)]:hidden">↑ ↓ POUR CHOISIR · ENTRÉE POUR VALIDER</footer>
       </main>
     </Screen>
   );

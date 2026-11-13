@@ -954,3 +954,21 @@ Retravailler le combat pour qu'il soit plus fluide. Combos par personnage (ex. t
 ### Modifications à me renvoyer
 
 Ce qui reste raide ou lent, quels personnages manquent de punch, et si l'IA doit faire des combos.
+
+---
+
+## 24. Session 17 : jeu sur téléphone et côté des commandes
+
+### Fait
+
+- **Commandes tactiles** (`ui/TouchControls.tsx`, `game/input/touch.ts`) : croix analogique (gauche/droite = marche, haut = saut, bas = accroupi), boutons FOND, ÉCRAN, COURSE, quatre attaques (poing G/D, pied G/D), bouton pause. Les doigts alimentent `KeyboardInput` comme des touches : le moteur n'a pas changé. Un tap bref entre deux ticks n'est pas perdu (`touchTapped`).
+- **Réglages** (`ui/Settings.tsx`) : attaques à droite (défaut) ou à gauche, le déplacement passe de l'autre côté ; commandes tactiles AUTO / OUI / NON. Accessibles depuis le menu principal (RÉGLAGES) et le menu pause (RÉGLAGES TACTILES). Sauvegardés dans le navigateur (`iron-legacy.touch`).
+- Écran en portrait : message « tourne ton téléphone ». Menu principal compacté (2 colonnes) sur écran de moins de 520 px de haut. Viewport sans zoom.
+
+### Vérifié
+
+Typecheck et build OK. Émulation 812x375 : menu, combat avec commandes, tap sur POING D (coup lancé), croix vers la droite (le combattant avance), bascule des attaques à gauche.
+
+### Non vérifié
+
+Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos au doigt). Écrans de sélection, arcade, compte, en ligne : seulement lisibles, pas adaptés au téléphone. Pas de plein écran. L'aide texte est masquée sur tactile.
