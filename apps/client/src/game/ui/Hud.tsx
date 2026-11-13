@@ -108,7 +108,9 @@ function Overlay() {
     return <Banner color="#ffb020">{text}</Banner>;
   }
   if (h.phase === 'over') {
-    const won = h.matchWinner === 0;
+    // En ligne, le joueur local n'est pas forcément le combattant 0 (seul l'hôte l'est).
+    const me = runtime.online?.localIndex ?? 0;
+    const won = runtime.world?.match.mode === 'team' ? runtime.world.match.winnerTeam === me % 2 : h.matchWinner === me;
     const inCampaign = useArcade.getState().active || useStory.getState().active || useRobots.getState().active || useOnline.getState().screen === 'match';
     return (
       <>
