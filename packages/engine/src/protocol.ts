@@ -87,7 +87,8 @@ export type ServerMessage =
   | { type: 'hash'; t: number; h: string }
   | { type: 'snapshot'; world: World }
   | { type: 'result'; winner: number | null; winnerTeam: number | null }
-  | { type: 'pong'; ts: number }
+  /** `late` : entrées de ce joueur arrivées après leur tick (total du combat) ; `hz` : cadence réelle du serveur. */
+  | { type: 'pong'; ts: number; late?: number; hz?: number }
   | { type: 'error'; message: string };
 
 /** Nom affiché : texte découpé, sans espaces superflus, valeur par défaut si vide. */

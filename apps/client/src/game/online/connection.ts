@@ -5,6 +5,8 @@ import { savedToken } from '../account/token';
 /** Adresse du serveur de combat (variable d'environnement VITE_SERVER_URL, sinon localhost). */
 export const SERVER_URL: string = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? 'ws://localhost:2567';
 
+/** Test : `?lag=200` ajoute 200 ms d'aller-retour (moitié à l'envoi, moitié à la réception). */
+const LAG = Math.max(0, Number(new URLSearchParams(window.location.search).get('lag')) || 0);
 
 const MESSAGE_TYPES = ['welcome', 'lobby', 'start', 'tick', 'hash', 'snapshot', 'result', 'pong', 'error'] as const;
 
@@ -25,14 +27,16 @@ export async function openRoom(
     ? await client.create(FIGHT_ROOM_NAME, { code, name, mode: gameMode, token: savedToken() })
     : await client.join(FIGHT_ROOM_NAME, { code, name, token: savedToken() });
   for (const type of MESSAGE_TYPES) {
-    room.onMessage(type, (m: ServerMessage) => onMessage(m));
+    room.onMessage(type, (m: ServerMessage) => (LAG ? setTimeout(() => onMessage(m), LAG / 2) : onMessage(m)));
   }
   room.onLeave((reason: number | string) => onClose(String(reason)));
   return room;
 }
 
 export function sendMessage(m: ClientMessage): void {
-  room?.send(m.type, m);
+  const r = room;
+  if (LAG) setTimeout(() => r?.send(m.type, m), LAG / 2);
+  else r?.send(m.type, m);
 }
 
 export function closeRoom(): void {

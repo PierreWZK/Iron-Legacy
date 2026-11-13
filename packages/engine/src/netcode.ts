@@ -36,6 +36,8 @@ export class Rollback {
   private confirmed = new Set<number>();
   /** Dernière entrée confirmée de chaque emplacement (prédiction des entrées distantes). */
   private last: TickInputs;
+  /** Tick confirmé le plus récent (source de `last`). */
+  private newest = -1;
   private readonly horizon: number;
 
   constructor(localIndex: number, initial: World, horizon = 600) {
@@ -81,19 +83,36 @@ export class Rollback {
     const old = this.inputs.get(t);
     this.confirmed.add(t);
     this.inputs.set(t, bits);
-    if (t >= this.current.tick) {
+    const newest = t > this.newest;
+    if (newest) {
+      this.newest = t;
       bits.forEach((v, i) => {
         if (i !== this.localIndex) this.last[i] = v;
       });
-      return;
     }
-    if (old && old.length === bits.length && old.every((v, i) => v === bits[i])) return;
-    const start = this.states.get(t);
+    if (t >= this.current.tick) return;
+    let from = old && same(old, bits) ? Infinity : t;
+    // Le client joue en avance : les ticks déjà joués après t étaient prédits avec d'anciennes entrées distantes.
+    // On les re-prédit avec les plus récentes (sinon l'adversaire resterait figé dans la prédiction).
+    if (newest) {
+      for (let k = t + 1; k < this.current.tick; k++) {
+        if (this.confirmed.has(k)) continue;
+        const p = this.inputs.get(k);
+        if (!p) continue;
+        const q = p.map((v, i) => (i === this.localIndex ? v : this.last[i]!));
+        if (!same(p, q)) {
+          this.inputs.set(k, q);
+          if (k < from) from = k;
+        }
+      }
+    }
+    if (from === Infinity) return;
+    const start = this.states.get(from);
     if (!start) return; // trop ancien : la resynchronisation serveur prendra le relais
     this.rollbacks++;
     const end = this.current.tick;
     this.current = cloneWorld(start);
-    for (let k = t; k < end; k++) {
+    for (let k = from; k < end; k++) {
       this.states.set(k, cloneWorld(this.current));
       stepWorld(this.current, this.inputs.get(k)!);
       this.resimulated++;
@@ -150,6 +169,8 @@ export class Rollback {
     for (const k of [...this.confirmed]) if (k < min) this.confirmed.delete(k);
   }
 }
+
+const same = (a: TickInputs, b: TickInputs): boolean => a.length === b.length && a.every((v, i) => v === b[i]);
 
 /** Empreinte d'un état (sans les événements, qui dépendent du chemin de simulation). */
 export function worldHash(w: World): string {

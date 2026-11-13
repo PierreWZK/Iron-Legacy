@@ -193,8 +193,12 @@ function handle(m: ServerMessage): void {
     {
       const ping = Math.max(0, Date.now() - m.ts);
       useOnline.setState({ ping });
-      // Lissage, mais une hausse est prise tout de suite (mieux vaut trop d'avance que des entrées en retard).
-      runtime.rtt = ping > runtime.rtt ? ping : runtime.rtt * 0.8 + ping * 0.2;
+      // Lissage (une hausse compte plus vite qu'une baisse) et plafond : un ping isolé très lent (onglet ralenti)
+      // ne doit pas donner une avance énorme, qui retarderait tout ce qu'on voit des adversaires.
+      const p = Math.min(ping, 400);
+      runtime.rtt += (p - runtime.rtt) * (p > runtime.rtt ? 0.3 : 0.15);
+      runtime.net.late = m.late ?? 0;
+      runtime.net.hz = m.hz ?? 0;
     }
       return;
     case 'error':

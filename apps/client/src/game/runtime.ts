@@ -127,6 +127,12 @@ export class Runtime {
   /** Tick le plus avancé confirmé par le serveur (+1). */
   private serverTick = 0;
   private queue: GameEvent[] = [];
+  private lastTickAt = 0;
+  /**
+   * Diagnostic réseau (panneau F3 / ?debug) : avance visée et réelle (ticks), rattrapages d'un coup, attentes
+   * (trop d'avance), plus grand trou entre deux ticks reçus (ms), entrées en retard côté serveur, cadence serveur.
+   */
+  net = { lead: 0, ahead: 0, serverTick: 0, bursts: 0, stalls: 0, maxGap: 0, late: 0, hz: 0 };
 
   start(cfg: MatchConfig): void {
     this.config = { ...cfg, level: cfg.mode === 'ai' ? effectiveLevel(cfg.level) : cfg.level };
@@ -157,6 +163,8 @@ export class Runtime {
     this.online = new Rollback(opts.slot, world);
     this.sendInput = opts.sendInput;
     this.serverTick = 0;
+    this.lastTickAt = 0;
+    this.net = { lead: 0, ahead: 0, serverTick: 0, bursts: 0, stalls: 0, maxGap: 0, late: 0, hz: 0 };
     this.world = this.online.world;
     this.view = initialView(this.world);
     this.prev = cloneWorld(this.world);
@@ -173,6 +181,9 @@ export class Runtime {
   onlineTick(t: number, inputs: number[]): void {
     if (!this.online) return;
     this.serverTick = Math.max(this.serverTick, t + 1);
+    const now = performance.now();
+    if (this.lastTickAt) this.net.maxGap = Math.max(this.net.maxGap, now - this.lastTickAt);
+    this.lastTickAt = now;
     this.online.confirm(t, inputs);
     this.world = this.online.world;
   }
@@ -208,6 +219,7 @@ export class Runtime {
     let cap = MAX_STEPS_PER_FRAME;
     if (diff > 6) {
       // Gros retard (départ, onglet caché, machine lente) : rattrapage d'un coup.
+      this.net.bursts++;
       cap = Math.min(diff, CATCH_UP_MAX) + MAX_STEPS_PER_FRAME;
       this.acc = Math.max(this.acc, Math.min(diff, CATCH_UP_MAX) * DT);
     } else if (diff > 1) {
@@ -220,6 +232,7 @@ export class Runtime {
     while (this.acc >= DT && steps < cap) {
       // Trop d'avance sur le serveur : on attend ses confirmations (évite des corrections massives).
       if (rb.tick - this.serverTick > maxAhead) {
+        this.net.stalls++;
         this.acc = 0;
         break;
       }
@@ -244,6 +257,9 @@ export class Runtime {
       steps++;
     }
     if (steps === cap) this.acc = 0;
+    this.net.lead = lead;
+    this.net.ahead = rb.tick - this.serverTick;
+    this.net.serverTick = this.serverTick;
     this.alpha = this.acc / DT;
     this.shake *= Math.exp(-delta * 9);
   }

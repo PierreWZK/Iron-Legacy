@@ -33,6 +33,35 @@ function HealthBar({ value, max, mirrored, color }: { value: number; max: number
   );
 }
 
+/** Diagnostic réseau (panneau F3 ou ?debug) : valeurs instantanées et taux par seconde. */
+function NetDebug() {
+  const [r, setR] = useState<string[]>([]);
+  useEffect(() => {
+    let prev = { rb: 0, re: 0, st: 0, late: 0, at: performance.now() };
+    const id = setInterval(() => {
+      const rb = runtime.online;
+      if (!rb) return;
+      const n = runtime.net;
+      const now = performance.now();
+      const s = (now - prev.at) / 1000;
+      const per = (v: number, p: number) => Math.round((v - p) / s);
+      setR([
+        `ping ${useOnline.getState().ping ?? '—'} ms · estimé ${Math.round(runtime.rtt)} ms`,
+        `avance ${n.ahead} ticks (${Math.round((n.ahead * 1000) / 60)} ms) · visée ${n.lead}`,
+        `corrections ${per(rb.rollbacks, prev.rb)}/s · rejoués ${per(rb.resimulated, prev.re)}/s`,
+        `ticks reçus ${per(n.serverTick, prev.st)}/s · serveur ${n.hz} Hz`,
+        `trou max entre ticks ${Math.round(n.maxGap)} ms`,
+        `entrées en retard ${n.late} (+${per(n.late, prev.late)}/s)`,
+        `rattrapages ${n.bursts} · attentes ${n.stalls} · désync ${useOnline.getState().desyncs}`,
+      ]);
+      n.maxGap = 0;
+      prev = { rb: rb.rollbacks, re: rb.resimulated, st: n.serverTick, late: n.late, at: now };
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <div className="mb-1 space-y-0.5 text-iron-cyan">{r.map((l) => <div key={l}>{l}</div>)}</div>;
+}
+
 function Wins({ count, align }: { count: number; align: 'left' | 'right' }) {
   return (
     <div className={`flex gap-1.5 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -162,7 +191,7 @@ export function Hud() {
   const help = useHelp((s) => s.open);
   const bindings = useBindings((s) => s.bindings);
   const touch = useTouchEnabled();
-  const [debug, setDebug] = useState(false);
+  const [debug, setDebug] = useState(() => new URLSearchParams(window.location.search).has('debug'));
   const comboCount = h.combo[0] >= h.combo[1] ? h.combo[0] : h.combo[1];
   const comboSide = h.combo[0] >= h.combo[1] ? 'left' : 'right';
   const ids = runtime.online ? runtime.heroes : [runtime.config.p1, runtime.config.p2];
@@ -238,9 +267,9 @@ export function Hud() {
       <PauseMenu />
 
       {debug && (
-        <div className="absolute right-4 top-32 w-56 bg-black/65 p-3 text-xs tabular-nums text-white/80">
+        <div className={`absolute right-4 top-32 bg-black/65 p-3 text-xs tabular-nums text-white/80 ${h.mode === 'online' ? 'w-80' : 'w-56'}`}>
           <div className="mb-1 font-display tracking-widest text-iron-amber">{fr.subtitle}</div>
-          {h.mode === 'online' && <div className="text-iron-cyan">EN LIGNE · ping {useOnline.getState().ping ?? '—'} ms · désync {useOnline.getState().desyncs}</div>}
+          {h.mode === 'online' && <NetDebug />}
           <div>{fr.debug.fps} : {h.fps}</div>
           <div>{fr.debug.tick} : {h.tick}</div>
           <div>{fr.debug.distance} : {h.distance.toFixed(2)} m</div>
