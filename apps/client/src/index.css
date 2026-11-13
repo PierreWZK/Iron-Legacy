@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Orbitron", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Russo One", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
   --color-iron-bg: #07090d;
   --color-iron-amber: #ffb020;
   --color-iron-cyan: #34e0ff;
+  --color-iron-red: #ff4a3a;
 }
 
 html,
@@ -16,13 +18,83 @@ body,
   color: #e8edf3;
   overflow: hidden;
   user-select: none;
+  font-family: var(--font-body);
 }
 
 /* Dégâts flottants (Hud.tsx). */
 @keyframes popup {
-  from { opacity: 1; transform: translate(-50%, 0); }
-  to { opacity: 0; transform: translate(-50%, -40px); }
+  from { opacity: 1; transform: translate(-50%, 0) scale(1.2); }
+  to { opacity: 0; transform: translate(-50%, -48px) scale(1); }
 }
 .popup {
   animation: popup 0.9s ease-out forwards;
+}
+
+/* Fond d'écran arcade : lueur d'accent, bandes diagonales, vignette. `--accent` change par personnage. */
+.arcade-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 45%, color-mix(in srgb, var(--accent, #ffb020) 38%, transparent), transparent 70%),
+    linear-gradient(160deg, #0c1018 0%, #07090d 55%, #120a10 100%);
+  transition: background 0.4s;
+}
+.arcade-bg::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: repeating-linear-gradient(115deg, transparent 0 46px, rgba(255, 255, 255, 0.035) 46px 50px);
+  animation: stripes 14s linear infinite;
+}
+.arcade-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.75) 100%);
+  pointer-events: none;
+}
+@keyframes stripes {
+  to { transform: translateX(-50px); }
+}
+
+/* Texte contourné énorme en arrière-plan. */
+.ghost-text {
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--accent, #ffb020) 55%, transparent);
+  color: transparent;
+}
+
+/* Titre métallique. */
+.logo-text {
+  background: linear-gradient(180deg, #fff 0%, #ffd27a 38%, #ff8a1f 62%, #8a3a0a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 24px rgba(255, 140, 30, 0.35));
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; translate: -60px 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; translate: 60px 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes pop-in {
+  0% { opacity: 0; scale: 2.4; }
+  60% { opacity: 1; scale: 0.92; }
+  100% { opacity: 1; scale: 1; }
+}
+@keyframes fade-up {
+  from { opacity: 0; translate: 0 14px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.anim-left { animation: slide-in-left 0.5s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.anim-right { animation: slide-in-right 0.5s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.anim-pop { animation: pop-in 0.45s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.anim-up { animation: fade-up 0.35s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-bg::before, .anim-left, .anim-right, .anim-pop, .anim-up { animation: none; }
 }

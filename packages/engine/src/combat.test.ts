@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Btn, COUNTER_BONUS_STUN, PARRY_STUN, createDuelWorld, getMove, stepWorld, type World } from './index';
+import { Btn, COUNTER_BONUS_STUN, PARRY_STUN, createDuelWorld, getCharacter, getMove, stepWorld, type World } from './index';
 
 /** Duel à `distance` m, KAIRO contre KAIRO, sans intro. */
 const duel = (distance = 1.2): World => createDuelWorld({ p1: 'kairo', p2: 'kairo', distance });
@@ -79,7 +79,7 @@ describe('contre-attaque', () => {
 });
 
 describe('combos', () => {
-  it('jab → direct → circulaire s enchaîne avec mise à l échelle des dégâts', () => {
+  it("jab → rp2 → rk3 s'enchaîne avec mise à l'échelle des dégâts", () => {
     const w = duel(1.2);
     const p1 = w.fighters[0]!;
     const p2 = w.fighters[1]!;
@@ -94,15 +94,16 @@ describe('combos', () => {
       } else if (phase === 1 && p1.moveHit && p1.move === 'jab' && w.hitstop === 0) {
         in1 = Btn.RP;
         phase = 2;
-      } else if (phase === 2 && p1.move === 'cross' && p1.moveHit && w.hitstop === 0) {
+      } else if (phase === 2 && p1.move === 'rp2' && p1.moveHit && w.hitstop === 0) {
         in1 = Btn.RK;
         phase = 3;
       }
       stepWorld(w, [in1, 0]);
     }
     expect(phase).toBe(3);
-    // 4 (jab) + round(8*0.93)=7 (direct) + round(14*0.86)=12 (circulaire)
-    expect(p2.health).toBe(100 - 4 - 7 - 12);
+    // jab + rp2 à 93 % + rk3 à 86 %
+    const km = getCharacter('kairo').moves;
+    expect(p2.health).toBe(100 - km.jab.damage - Math.round(km.rp2.damage * 0.93) - Math.round(km.rk3.damage * 0.86));
     expect(maxCombo).toBe(3);
   });
 });

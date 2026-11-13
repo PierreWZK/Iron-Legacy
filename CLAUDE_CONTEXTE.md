@@ -855,3 +855,120 @@ Le message d'erreur exact du build Docker, et ce que tu veux décider pour le d�
 - **Postgres** : toujours SQLite sur volume. **Sauvegardes du volume** : non configurées.
 - **Rebuild du serveur avec le correctif Dockerfile** : non relancé (le serveur actuel tourne, il n'avait pas besoin du correctif).
 - Pas de déploiement automatique à chaque fusion (à lancer à la main ou via webhook Coolify).
+
+---
+
+## 22. Session 15 : refonte visuelle (look jeu vidéo, personnages, sélection, histoire)
+
+### Demande (simplifiée)
+
+Refaire l'esthétique du site en entier : fun, comme un vrai jeu vidéo. Vrai menu de sélection des personnages avec aperçu, mode histoire avec dialogues où l'on voit les personnages, personnages beaucoup plus travaillés.
+
+### Ce qui est fait
+
+- **Rendu des personnages** (`render/rig.ts`, réécrit) : cel-shading (3 paliers) + contour par coque inversée, corps modelé (profils de révolution pour torse et membres, muscles), mains avec phalanges et pouce, gants, chaussures à semelle, visages (yeux, sourcils, nez, bouche, oreilles), coiffures, tenues détaillées (gi à col croisé et ceinture nouée, short de boxe, sangles de fourrure, justaucorps de catch avec ceinture de champion, ninja avec sabre dans le dos, manteau à circuits), robots en blocs biseautés avec plaques, ouïes, noyau, accessoires (`extras` dans `visuals.ts` : cape, sac, canons, lames, crête, casque, cornes). Noms et positions des joints inchangés : `pose.ts` et toutes les animations marchent sans modification.
+- **`RigPlayer`** : joue les vrais coups d'un personnage hors combat (aperçu, menu, portraits).
+- **Portraits** (`render/portraits.ts`) : bustes rendus une fois par le même modèle 3D, mis en cache, en deux tailles. Utilisés dans la grille de sélection, les dialogues, l'écran VS et le HUD.
+- **Menu principal** : titre métallique, duel animé en fond (deux personnages tirés au hasard qui s'échangent des coups), entrées en grosses touches inclinées, navigation clavier.
+- **Sélection de personnage** (`ui/FighterSelect.tsx`) : aperçu 3D qui tourne (glisser pour pivoter), caractéristiques normalisées sur le roster (puissance, vitesse, allonge, endurance, calculées depuis les données réelles), liste de coups cliquables qui les jouent dans l'aperçu, grille de portraits, flèches + Entrée. Utilisé pour Combat, Entraînement (choix du niveau ou du mannequin) et Histoire (avancement par chapitre).
+- **Écran VS** avant chaque combat (combat rapide, histoire, arcade, robots), Entrée pour passer.
+- **Mode histoire** : dialogues façon roman visuel (portraits face à face, celui qui parle est mis en avant, boîte à nom, texte lettre à lettre, clic ou Entrée). Répliques par personnage (`story/text.ts` : `OPP_LINES`, `HERO_LINES`, `chapterScript`). Écrans de défaite et de fin refaits avec portraits.
+- **HUD de combat** : cartouches avec portrait, barres inclinées avec traînée de dégâts, horloge qui clignote sous 10 s, annonces « ROUND n » et « FIGHT ! », combo animé, aide masquable (H), débogage (F3, masqué par défaut).
+- Polices Russo One et Chakra Petch (Google Fonts), thème arcade partagé (`index.css`, `ui/kit.tsx`).
+- Écrans arcade, robots, compte et en ligne : gardent leur contenu, passent sur le nouveau fond.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| `npm run typecheck` (3 paquets) | OK |
+| `npm run build` client | OK (three.js toujours chargé à la demande) |
+| Navigateur : menu avec duel animé, sélection 3D, grille de portraits, VS, combat avec nouveau HUD, dialogue d'histoire (héros et boss) | OK à l'écran |
+
+### Non testé ou limites (honnêteté)
+
+- Tests moteur et serveur non relancés : aucun code moteur ni serveur modifié.
+- Pas de mesure de FPS sur vrai GPU : le contour double le nombre de maillages ; à vérifier sur ta machine, et à baisser (option `outline` de `buildRig`) si besoin.
+- Les écrans arcade, robots, compte et en ligne n'ont pas été redessinés en détail, seulement posés sur le nouveau fond.
+- Pas de sons ni de musique. Pas de manette.
+- Histoire : les répliques sont une première version, à réécrire avec toi. Pas de réplique de victoire après le combat.
+- Mise en page vérifiée dans une fenêtre réduite seulement ; pas de test sur mobile.
+- Pas déployé : la branche est à relire avant fusion.
+
+### Tests à faire par toi
+
+1. Menu principal : flèches haut/bas, Entrée. Le duel en fond tourne-t-il fluidement ?
+2. COMBAT : choisis les personnages, essaie les coups dans l'aperçu, lance un combat. Les modèles te plaisent-ils (lesquels sont les moins réussis) ?
+3. HISTOIRE : lance un chapitre, lis le dialogue, perds un combat, gagne-en un.
+4. Dis-moi les FPS pendant un combat (F3).
+
+### Modifications à me renvoyer
+
+Quels personnages retravailler en priorité, ce qui manque au menu et à l'histoire, et si tu veux que je déploie sur Coolify.
+
+---
+
+## 23. Session 16 : combat plus fluide (combos, mouvements, pause, touches, aide)
+
+### Demande (simplifiée)
+
+Retravailler le combat pour qu'il soit plus fluide. Combos par personnage (ex. trois appuis sur un même bouton = trois coups rapides), mêmes entrées possibles d'un personnage à l'autre mais animations différentes. Menu Échap (au lieu de quitter) avec réglage des touches. Bouton « Aide » qui affiche et masque le texte des mouvements. Revoir animations et déplacements.
+
+### Ce qui est fait
+
+- **Combos** (moteur) : 8 nouveaux coups `lp2 lp3 rp2 rp3 lk2 lk3 rk2 rk3`. Un coup d'ouverture (jab, direct, pied frontal, circulaire) mène au 2e coup du bouton pressé, puis au 3e. Les boutons se mélangent (ex. LP RP RK = jab, `rp2`, `rk3`). Pas de direction tenue : avec une direction, les coups directionnels d'avant restent disponibles. Le combo continue même si un coup rate. Données dans `characters/combos.ts` : 9 styles (karaté, boxe, bête, lourd, ninja, judo, ombre, mécanique, pieds) donnent à chaque personnage ses animations, noms et rythme ; vitesse et puissance dérivent de ses propres jab et direct.
+- **Mémoire d'appuis** : un bouton pressé un peu trop tôt est gardé (9 ticks hors coup, jusqu'à la fenêtre de combo pendant un coup) et part au bon moment. Les appuis faits pendant l'arrêt sur image d'un impact ne sont plus perdus.
+- **Élan de marche** : la vitesse monte en quelques ticks au lieu de démarrer à plein régime, et retombe vite à l'arrêt.
+- **Animations** (`render/pose.ts`) : coups avec anticipation (le membre part en arrière puis accélère), tenue à l'impact, retour lissé ; torsion du corps et transfert de poids sur les coups ; marche et course avec contre-rotation du buste, rebond et foulée par personnage ; garde au repos différente par personnage (rebond du boxeur, posture basse des bêtes, raideur des robots) ; saut qui change selon la montée et la descente ; recul de réaction qui s'estompe. Le lissage des os est beaucoup plus rapide pendant les coups, les réactions et les esquives.
+- **Menu pause** (Échap) : reprendre, commandes, aide, recommencer, quitter. Le jeu hors ligne s'arrête vraiment. En ligne, le menu s'ouvre mais le combat continue.
+- **Réglage des touches** : deux touches par action, clic puis nouvelle touche, retour arrière pour effacer, clic droit pour retirer, « par défaut ». Sauvegardé dans le navigateur. Touches réservées : Échap, Entrée, H, T, I, F3.
+- **Aide** : bouton AIDE (et touche H) qui affiche ou masque le texte ; il suit les touches réglées et liste les combos réels du personnage joué. Préférence mémorisée.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| Moteur : 136 tests, dont `combos.test.ts` (trois appuis par bouton, mélange, appui en avance, combo à vide, direction tenue, un combo complet par personnage et par bouton, animations différentes entre styles, déterminisme, élan de marche) | **Tout passe** |
+| Serveur : 11 tests (duel en ligne avec le nouveau moteur) | **Tout passe** |
+| Typecheck des trois paquets | OK |
+| Navigateur : combo de 3 coups à l'écran, pause, écran des commandes, changement de touche puis retour aux touches par défaut, aide | OK |
+
+### Non testé ou limites (honnêteté)
+
+- **Le ressenti** : le navigateur de test est logiciel (environ 6 images par seconde). Fluidité, rythme des combos et animations restent à juger sur ta machine.
+- Deux appuis très rapprochés pendant l'arrêt sur image : un seul est gardé (la mémoire contient le dernier appui).
+- Les combos sont jouables par le joueur ; l'IA ne les utilise pas encore volontairement (elle garde ses enchaînements d'avant).
+- Combos non jouables avec une direction tenue (par choix, pour garder les coups directionnels).
+- Le réglage des touches ne passe pas par la sauvegarde de compte (navigateur seulement). Pas de manette.
+- Équilibrage des dégâts des combos non éprouvé en partie longue.
+- En ligne : combos intégrés au moteur partagé (tests de duel passent), non rejoués à deux machines.
+- Les animations de projection n'ont pas été modifiées.
+
+### Tests à faire par toi
+
+1. Entraînement : essaie trois fois chaque bouton (A, E, R, F) avec plusieurs personnages. Les enchaînements sont-ils assez rapides ?
+2. Marche, course, esquive, saut : plus agréable qu'avant ?
+3. Échap : pause, commandes, change une touche, reprends.
+4. Bouton AIDE : affiche et masque le texte.
+
+### Modifications à me renvoyer
+
+Ce qui reste raide ou lent, quels personnages manquent de punch, et si l'IA doit faire des combos.
+
+---
+
+## 24. Session 17 : jeu sur téléphone et côté des commandes
+
+### Fait
+
+- **Commandes tactiles** (`ui/TouchControls.tsx`, `game/input/touch.ts`) : croix analogique (gauche/droite = marche, haut = saut, bas = accroupi), boutons FOND, ÉCRAN, COURSE, quatre attaques (poing G/D, pied G/D), bouton pause. Les doigts alimentent `KeyboardInput` comme des touches : le moteur n'a pas changé. Un tap bref entre deux ticks n'est pas perdu (`touchTapped`).
+- **Réglages** (`ui/Settings.tsx`) : attaques à droite (défaut) ou à gauche, le déplacement passe de l'autre côté ; commandes tactiles AUTO / OUI / NON. Accessibles depuis le menu principal (RÉGLAGES) et le menu pause (RÉGLAGES TACTILES). Sauvegardés dans le navigateur (`iron-legacy.touch`).
+- Écran en portrait : message « tourne ton téléphone ». Menu principal compacté (2 colonnes) sur écran de moins de 520 px de haut. Viewport sans zoom.
+
+### Vérifié
+
+Typecheck et build OK. Émulation 812x375 : menu, combat avec commandes, tap sur POING D (coup lancé), croix vers la droite (le combattant avance), bascule des attaques à gauche.
+
+### Non vérifié
+
+Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos au doigt). Écrans de sélection, arcade, compte, en ligne : seulement lisibles, pas adaptés au téléphone. Pas de plein écran. L'aide texte est masquée sur tactile.

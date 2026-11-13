@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { getCharacter, storyLevel, storyOpponents, STORY_LENGTH } from '@iron/engine';
 import { runtime } from '../runtime';
-import { backToMenu, useApp } from '../store';
+import { backToMenu, toFight, useApp } from '../store';
 import { nextLocked, unlockCharacter, useProgress } from '../progress';
-import { chapterLines } from './text';
+import { chapterScript, type Line } from './text';
 
 export type StoryPhase = 'select' | 'dialogue' | 'lost' | 'ending';
 
@@ -38,8 +38,10 @@ export interface StoryState {
   active: boolean;
   phase: StoryPhase;
   hero: string;
+  /** Adversaire du chapitre en cours. */
+  opponent: string;
   chapter: number;
-  lines: string[];
+  lines: Line[];
   lineIndex: number;
   progress: Record<string, StoryProgress>;
   /** Personnage débloqué par la dernière fin, pour l'écran de fin. */
@@ -50,6 +52,7 @@ export const useStory = create<StoryState>(() => ({
   active: false,
   phase: 'select',
   hero: 'kairo',
+  opponent: 'vera',
   chapter: 0,
   lines: [],
   lineIndex: 0,
@@ -73,8 +76,8 @@ export function storyChoose(hero: string): void {
 
 function showChapter(hero: string, chapter: number): void {
   const opp = storyOpponents(hero)[chapter]!;
-  const lines = chapterLines(hero, chapter, getCharacter(opp).name);
-  useStory.setState({ active: true, phase: 'dialogue', hero, chapter, lines, lineIndex: 0, unlockedByEnding: null });
+  const lines = chapterScript(hero, chapter, opp, getCharacter(opp).name);
+  useStory.setState({ active: true, phase: 'dialogue', hero, opponent: opp, chapter, lines, lineIndex: 0, unlockedByEnding: null });
   useApp.setState({ screen: 'story' });
 }
 
@@ -93,7 +96,7 @@ function launchChapter(): void {
   const opp = storyOpponents(hero)[chapter]!;
   runtime.start({ p1: hero, p2: opp, mode: 'ai', level: storyLevel(chapter), dummy: 'idle' });
   useStory.setState({ phase: 'dialogue' });
-  useApp.setState((s) => ({ screen: 'fight', runId: s.runId + 1 }));
+  toFight(`HISTOIRE · CHAPITRE ${chapter + 1}`);
 }
 
 /** Rejoue le chapitre où l'on a perdu. */

@@ -206,7 +206,14 @@ export class Runtime {
     this.shake *= Math.exp(-delta * 9);
   }
 
+  /** Combat hors ligne en pause (menu Échap). Sans effet en ligne : le serveur ne s'arrête pas. */
+  paused = false;
+
   advance(delta: number, kb: KeyboardInput): void {
+    if (this.paused && !this.online) {
+      kb.discard();
+      return;
+    }
     if (this.online) {
       this.advanceOnline(delta, kb);
       return;

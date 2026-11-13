@@ -60,24 +60,39 @@ export const useHud = create<HudState>(() => ({
   team: false,
 }));
 
-export type Screen = 'menu' | 'fight' | 'arcade' | 'story' | 'robots' | 'online' | 'account';
+export type Screen = 'menu' | 'select' | 'vs' | 'fight' | 'arcade' | 'story' | 'robots' | 'online' | 'account' | 'settings';
 
 export interface AppState {
   screen: Screen;
   config: MatchConfig;
   /** Incrémenté à chaque combat : remonte la scène 3D proprement. */
   runId: number;
+  /** Écran VS affiché avant le combat (personnages, légende). */
+  vs: { p1: string; p2: string; sub: string } | null;
 }
 
 export const useApp = create<AppState>(() => ({
   screen: 'menu',
   config: { p1: 'kairo', p2: 'vera', mode: 'ai', level: 2, dummy: 'idle' },
   runId: 0,
+  vs: null,
 }));
 
 /** Lance un combat avec la configuration choisie dans le menu. */
 export function startFight(): void {
   runtime.start(useApp.getState().config);
+  toFight();
+}
+
+/** Passe par l'écran VS (le combat est déjà préparé dans `runtime`), puis `enterFight`. */
+export function toFight(sub = ''): void {
+  const c = runtime.config;
+  useApp.setState({ screen: 'vs', vs: { p1: c.p1, p2: c.p2, sub } });
+}
+
+/** Fin de l'écran VS : monte la scène de combat. */
+export function enterFight(): void {
+  if (useApp.getState().screen !== 'vs') return;
   useApp.setState((s) => ({ screen: 'fight', runId: s.runId + 1 }));
 }
 

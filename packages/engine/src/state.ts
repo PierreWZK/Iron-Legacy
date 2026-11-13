@@ -50,6 +50,11 @@ export interface Fighter {
   input: InputFrame;
   /** Derniers ticks où chaque bouton a été pressé (détection des projections à deux boutons). */
   lastPress: { lp: number; rp: number; lk: number; rk: number };
+  /** Boutons d'attaque pressés récemment (mémorisés quelques ticks) et leur ancienneté en ticks. */
+  buffer: number;
+  bufferAge: number;
+  /** Élan de marche (0 à 1) : la vitesse monte en quelques ticks au lieu d'être instantanée. */
+  pace: number;
   /** Identifiant du combattant qui m'a projeté (séquence de projection en cours), sinon null. */
   thrownBy: number | null;
   crouched: boolean;
@@ -147,6 +152,9 @@ function makeFighter(id: number, team: number, characterId: string): Fighter {
     prevInput: 0,
     input: 0,
     lastPress: { lp: -999, rp: -999, lk: -999, rk: -999 },
+    buffer: 0,
+    bufferAge: 0,
+    pace: 0,
     thrownBy: null,
     crouched: false,
     lastHitBy: null,
@@ -191,6 +199,9 @@ export function beginRound(w: World, intro: boolean, distance = START_DISTANCE):
     f.airStun = false;
     f.combo = 0;
     f.comboTimer = 0;
+    f.buffer = 0;
+    f.bufferAge = 0;
+    f.pace = 0;
     f.crouched = false;
     f.thrownBy = null;
     endMove(f);
