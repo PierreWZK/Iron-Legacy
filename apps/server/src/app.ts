@@ -3,10 +3,10 @@ import { dirname } from 'node:path';
 import { createServer, type Server as HttpServer } from 'node:http';
 import { Server } from 'colyseus';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-import { FOUR_ROOM_NAME, ROOM_NAME, TEAM_ROOM_NAME } from '@iron/engine';
+import { FIGHT_ROOM_NAME, FOUR_ROOM_NAME, ROOM_NAME, TEAM_ROOM_NAME } from '@iron/engine';
 import { AccountStore, setAccountStore } from './accounts';
 import { handleApi } from './api';
-import { DuelRoom, FourRoom, TeamRoom } from './room';
+import { DuelRoom, FightRoom, FourRoom, TeamRoom } from './room';
 
 export interface GameServerOptions {
   /** Fichier SQLite des comptes. `:memory:` pour les tests. Défaut : variable IRON_DB ou data/iron.sqlite. */
@@ -32,5 +32,6 @@ export function createGameServer(opts: GameServerOptions = {}): {
   gameServer.define(ROOM_NAME, DuelRoom).filterBy(['code']);
   gameServer.define(FOUR_ROOM_NAME, FourRoom).filterBy(['code']);
   gameServer.define(TEAM_ROOM_NAME, TeamRoom).filterBy(['code']);
+  gameServer.define(FIGHT_ROOM_NAME, FightRoom).filterBy(['code']);
   return { gameServer, httpServer, accounts };
 }

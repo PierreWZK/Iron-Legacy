@@ -20,12 +20,14 @@ export function FighterView({ index, characterId }: { index: number; characterId
     const prev = p.fighters[index]!;
     const a = runtime.alpha;
     const k = 1 - Math.exp(-delta * 22);
-    // Coups, réactions et esquives : le corps suit la pose presque sans retard, sinon les coups rapides s'estompent.
-    const fast = cur.action === 'attack' || cur.action === 'hitstun' || cur.action === 'parry' || cur.action === 'dodge' || cur.action === 'dash';
-    const kb = 1 - Math.exp(-delta * (fast ? 75 : 26));
+    // Réactions et parades : le corps suit la pose presque sans retard. Coups, pas lancés et esquives : un peu de
+    // lissage pour que l'armé et le retour se voient (la pose elle-même porte l'anticipation et l'impact).
+    const snap = cur.action === 'hitstun' || cur.action === 'parry';
+    const move = cur.action === 'attack' || cur.action === 'dodge' || cur.action === 'dash';
+    const kb = 1 - Math.exp(-delta * (snap ? 75 : move ? 40 : 18));
     s.t += delta;
 
-    const pose = poseFor(cur, s.t, w);
+    const pose = poseFor(cur, s.t, w, a);
     const xf = pose.root;
     // Pendant une projection, la chorégraphie impose la hauteur et les rotations ; ensuite le corps reste à terre.
     s.lying = xf ? (xf.centerY < 0.35 ? 1 : 0) : s.lying + ((pose.lying ? 1 : 0) - s.lying) * k;

@@ -33,8 +33,18 @@ const PACE_UP = 0.2;
 const PACE_DOWN = 0.35;
 /** Part de la vitesse disponible dès le premier tick. */
 const PACE_MIN = 0.4;
-/** Fenêtre (ticks) entre LP et RP pour déclencher une projection. */
-const THROW_WINDOW = 4;
+/**
+ * Fenêtre (ticks) entre les deux boutons d'une projection (≈ 0,1 s). Le premier bouton lance son coup ;
+ * si le second arrive pendant ce délai, le coup est remplacé par la projection.
+ */
+const THROW_WINDOW = 6;
+/** Même fenêtre quand le second bouton continuerait un combo du coup en cours. */
+const THROW_WINDOW_COMBO = 4;
+/** Anti-répétition : même coup de base relancé à moins de SPAM_WINDOW ticks du précédent. */
+const SPAM_WINDOW = 50;
+const SPAM_MAX = 4;
+/** Récupération ajoutée par répétition (ticks). */
+const SPAM_RECOVERY = 5;
 
 /**
  * Avance le monde d'UN tick. Déterministe : mêmes entrées → même résultat.
@@ -121,7 +131,7 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
 
   switch (f.action) {
     case 'attack':
-      advanceAttack(f, input, eff, target);
+      advanceAttack(w, f, input, pressed, eff, target);
       return;
     case 'dodge':
       advanceDodge(f, target, speeds.dodge);
@@ -183,6 +193,7 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
     const id = attackIntent(input, eff, crouch ? 'crouch' : 'stand', running);
     if (id) {
       startMove(f, id);
+      noteRepeat(w, f, id);
       return;
     }
   }
@@ -212,14 +223,26 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
   else f.action = 'walkBack';
 }
 
-function advanceAttack(f: Fighter, input: InputFrame, eff: InputFrame, target: Vec3 | null): void {
+function advanceAttack(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, eff: InputFrame, target: Vec3 | null): void {
   if (!f.move) {
     endAction(f);
     return;
   }
   const m = getMove(f.characterId, f.move);
   f.moveFrame++;
-  const total = m.startup + m.active + m.recovery;
+  // Second bouton d'une projection arrivé juste après le premier : le coup de départ devient la projection.
+  if (!m.throw && !f.moveHit && f.moveFrame <= THROW_WINDOW && !isAirborne(f)) {
+    // Bouton qui continue un combo du coup en cours : le combo passe d'abord, sauf appui quasi simultané.
+    const d = dirPrefix(input);
+    const chainy = CHAIN_ORDER.some(([bit, key]) => (pressed & bit) !== 0 && m.chain?.[d + key] !== undefined);
+    const throwId = throwIntent(w, f, pressed, chainy ? THROW_WINDOW_COMBO : THROW_WINDOW);
+    if (throwId) {
+      f.spam = 0;
+      startMove(f, throwId);
+      return;
+    }
+  }
+  const total = m.startup + m.active + m.recovery + f.extraRecovery;
   if (m.lunge > 0 && f.moveFrame > m.startup && f.moveFrame <= m.startup + m.active) {
     f.pos.x += f.facing.x * m.lunge * DT;
     f.pos.z += f.facing.z * m.lunge * DT;
@@ -248,7 +271,10 @@ function advanceAttack(f: Fighter, input: InputFrame, eff: InputFrame, target: V
   const canChain = !waitsForCombo && ((m.cancel && f.moveHit) || (m.string === true && recovering));
   if (canChain && (eff & ATTACK_BUTTONS)) {
     const next = attackIntent(input, eff, stanceOf(input, f), false);
-    if (next && !getMove(f.characterId, next).throw) startMove(f, next);
+    if (next && !getMove(f.characterId, next).throw) {
+      startMove(f, next);
+      noteRepeat(w, f, next);
+    }
   }
 }
 
@@ -256,7 +282,11 @@ function advanceAttack(f: Fighter, input: InputFrame, eff: InputFrame, target: V
 function advanceDash(f: Fighter, target: Vec3 | null, eff: InputFrame): void {
   f.moveFrame++;
   const fwd = f.sub === 'fwd';
-  if (target && f.moveFrame <= DASH_MOVE_TICKS) moveGrounded(f, target, fwd ? 1 : -1, 0, fwd ? DASH_FWD_SPEED : DASH_BACK_SPEED, 0);
+  if (target && f.moveFrame <= DASH_MOVE_TICKS) {
+    // Élan puis freinage (vitesse décroissante), même distance totale qu'à vitesse constante.
+    const k = (2 * (DASH_MOVE_TICKS + 1 - f.moveFrame)) / (DASH_MOVE_TICKS + 1);
+    moveGrounded(f, target, fwd ? 1 : -1, 0, (fwd ? DASH_FWD_SPEED : DASH_BACK_SPEED) * k, 0);
+  }
   if (fwd && (eff & ATTACK_BUTTONS)) {
     for (const [bit, id] of DASH_MOVES) {
       if (eff & bit) {
@@ -284,16 +314,27 @@ function stanceOf(input: InputFrame, f: Fighter): Stance {
 }
 
 /** Deux boutons pressés à moins de THROW_WINDOW ticks l'un de l'autre → projection correspondante. */
-function throwIntent(w: World, f: Fighter, pressed: InputFrame): MoveId | null {
+function throwIntent(w: World, f: Fighter, pressed: InputFrame, window = THROW_WINDOW): MoveId | null {
   const last: Record<number, number> = {
     [Btn.LP]: f.lastPress.lp, [Btn.RP]: f.lastPress.rp, [Btn.LK]: f.lastPress.lk, [Btn.RK]: f.lastPress.rk,
   };
   for (const [a, b, id] of THROW_PAIRS) {
     const aNow = (pressed & a) !== 0;
     const bNow = (pressed & b) !== 0;
-    if ((aNow && w.tick - last[b]! <= THROW_WINDOW) || (bNow && w.tick - last[a]! <= THROW_WINDOW)) return id;
+    if ((aNow && w.tick - last[b]! <= window) || (bNow && w.tick - last[a]! <= window)) return id;
   }
   return null;
+}
+
+/**
+ * Anti-répétition des coups de base : relancer le même coup coup sur coup rallonge sa récupération
+ * (+SPAM_RECOVERY ticks par répétition) et réduit ses dégâts (voir `spamScale`). Varier ou attendre remet à zéro.
+ */
+function noteRepeat(w: World, f: Fighter, id: MoveId): void {
+  f.spam = id === f.spamMove && w.tick - f.spamTick <= SPAM_WINDOW ? Math.min(SPAM_MAX, f.spam + 1) : 0;
+  f.spamMove = id;
+  f.spamTick = w.tick;
+  f.extraRecovery = f.spam * SPAM_RECOVERY;
 }
 
 function startAction(f: Fighter, action: Fighter['action'], sub: DodgeSub = null): void {
@@ -309,6 +350,7 @@ function startMove(f: Fighter, id: NonNullable<Fighter['move']>): void {
   f.pace = 0;
   f.action = 'attack';
   f.move = id;
+  f.extraRecovery = 0;
   f.moveFrame = 1;
   f.moveHit = false;
   f.sub = null;

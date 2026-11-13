@@ -1,8 +1,8 @@
 import { Room, type Client } from 'colyseus';
 import { accountStore } from './accounts';
 import {
-  ARENA_IDS, botInput, CHARACTER_IDS, cleanName, createWorld, HASH_EVERY, makeRng, stepWorld, worldHash,
-  type LobbyPlayer, type LobbyState, type ServerMessage, type World,
+  ARENA_IDS, botInput, CHARACTER_IDS, cleanName, createWorld, HASH_EVERY, makeRng, MODE_PLAYERS, ROOM_MODES, stepWorld, worldHash,
+  type LobbyPlayer, type LobbyState, type RoomMode, type ServerMessage, type World,
 } from '@iron/engine';
 
 const RECONNECT_SECONDS = 30;
@@ -27,13 +27,22 @@ interface Seat {
  * (avec le numéro de tick) ; le serveur simule à 60 Hz avec les entrées reçues (ou la dernière connue),
  * calcule lui-même les bots, puis diffuse les entrées utilisées et, périodiquement, une empreinte d'état.
  *
- * Salle à 2 places : duel (manches). Salle à 4 places : dernier debout, humains et bots mélangés.
+ * Quatre places ; l'hôte choisit le mode : duel (2 combattants, manches), dernier debout (3 ou 4) ou 2v2 (4).
+ * Au lancement, les places occupées sont tassées au début (le client reçoit sa place de combat dans « start »).
  */
-export abstract class FightRoom extends Room {
-  abstract readonly size: number;
-  abstract readonly ffa: boolean;
-  /** Mode équipes 2v2 (places 0 et 2 contre 1 et 3). */
-  abstract readonly team: boolean;
+export class FightRoom extends Room {
+  readonly size = 4;
+  /** Mode au moment de la création (les salles historiques duel / four / team). */
+  protected initialMode: RoomMode = 'duel';
+  private mode: RoomMode = 'duel';
+
+  private get ffa(): boolean {
+    return this.mode === 'ffa';
+  }
+
+  private get team(): boolean {
+    return this.mode === 'team';
+  }
 
   private code = '';
   private seats: (Seat | null)[] = [];
@@ -51,8 +60,9 @@ export abstract class FightRoom extends Room {
   /** Tirages des bots : séparés du RNG du monde, pour que les clients restent synchronisés. */
   private botRng = makeRng(1);
 
-  override onCreate(options: { code?: string }): void {
+  override onCreate(options: { code?: string; mode?: unknown }): void {
     this.code = typeof options.code === 'string' ? options.code : '';
+    this.mode = ROOM_MODES.includes(options.mode as RoomMode) ? (options.mode as RoomMode) : this.initialMode;
     this.seats = Array.from({ length: this.size }, () => null);
     this.rematch = Array.from({ length: this.size }, () => false);
     this.pending = Array.from({ length: this.size }, () => new Map<number, number>());
@@ -63,6 +73,8 @@ export abstract class FightRoom extends Room {
     this.onMessage('ready', (client, msg: { ready?: unknown }) => this.onReady(client, msg));
     this.onMessage('arena', (client, msg: { arena?: unknown }) => this.onArena(client, msg));
     this.onMessage('bot', (client, msg: { add?: unknown }) => this.onBot(client, msg));
+    this.onMessage('mode', (client, msg: { mode?: unknown }) => this.onMode(client, msg));
+    this.onMessage('lobby', (client) => this.onBackToLobby(client));
     this.onMessage('start', (client) => this.onStart(client));
     this.onMessage('input', (client, msg: { t?: unknown; i?: unknown }) => this.onInput(client, msg));
     this.onMessage('ping', (client, msg: { ts?: unknown }) =>
@@ -73,6 +85,8 @@ export abstract class FightRoom extends Room {
   }
 
   override onJoin(client: Client, options: { name?: unknown; token?: unknown }): void {
+    // Refus : la promesse join() du client échoue avec ce message.
+    if (this.phase !== 'lobby') throw new Error('Combat en cours : attends la fin pour rejoindre.');
     const slot = this.seats.findIndex((s) => s === null);
     if (slot < 0) {
       client.send('error', { type: 'error', message: 'Salon plein.' } satisfies ServerMessage);
@@ -91,7 +105,7 @@ export abstract class FightRoom extends Room {
     const slot = this.slotOf(client.sessionId);
     if (slot < 0) return;
     const seat = this.seats[slot]!;
-    if (this.phase === 'lobby' || consented) {
+    if (this.phase === 'lobby' || this.phase === 'pick' || consented) {
       this.dropSeat(slot);
       return;
     }
@@ -116,7 +130,20 @@ export abstract class FightRoom extends Room {
       return;
     }
     this.seats[slot] = null;
-    this.broadcastLobby();
+    if (slot === 0) this.promoteHost();
+    // Quelqu'un part pendant la sélection : tout le monde revient au salon.
+    if (this.phase === 'pick') this.toLobby();
+    else this.broadcastLobby();
+  }
+
+  /** L'hôte est parti : le premier humain restant prend la place 0 (et devient hôte). */
+  private promoteHost(): void {
+    const i = this.seats.findIndex((s) => s !== null && !s.bot);
+    if (i <= 0) return;
+    this.seats[0] = this.seats[i]!;
+    this.seats[i] = null;
+    const c = this.clients.find((x) => x.sessionId === this.seats[0]!.sid);
+    if (c) this.sendTo(c, { type: 'welcome', slot: 0 });
   }
 
   private forfeit(slot: number): void {
@@ -142,7 +169,7 @@ export abstract class FightRoom extends Room {
 
   private onHero(client: Client, msg: { hero?: unknown }): void {
     const slot = this.slotOf(client.sessionId);
-    if (slot < 0 || this.phase !== 'lobby') return;
+    if (slot < 0 || (this.phase !== 'lobby' && this.phase !== 'pick')) return;
     if (typeof msg.hero !== 'string' || !CHARACTER_IDS.includes(msg.hero)) return;
     const seat = this.seats[slot]!;
     seat.hero = msg.hero;
@@ -152,8 +179,13 @@ export abstract class FightRoom extends Room {
 
   private onReady(client: Client, msg: { ready?: unknown }): void {
     const slot = this.slotOf(client.sessionId);
-    if (slot < 0 || this.phase !== 'lobby') return;
+    if (slot < 0 || (this.phase !== 'lobby' && this.phase !== 'pick')) return;
     this.seats[slot]!.ready = msg.ready === true;
+    // Sélection : le combat part dès que tout le monde a validé son combattant.
+    if (this.phase === 'pick' && this.seats.every((s) => s !== null && s.ready)) {
+      this.startMatch();
+      return;
+    }
     this.broadcastLobby();
   }
 
@@ -184,14 +216,59 @@ export abstract class FightRoom extends Room {
     this.broadcastLobby();
   }
 
-  /** Seul l'hôte (slot 0) lance le combat, quand toutes les places sont occupées et prêtes. */
-  private onStart(client: Client): void {
+  /** Hôte : change le mode. Passer en duel retire les bots ; refusé s'il reste plus de deux humains. */
+  private onMode(client: Client, msg: { mode?: unknown }): void {
     if (this.slotOf(client.sessionId) !== 0 || this.phase !== 'lobby') return;
-    if (this.seats.some((s) => s === null || !s.ready)) {
-      client.send('error', { type: 'error', message: 'Toutes les places doivent être occupées et prêtes.' } satisfies ServerMessage);
+    if (!ROOM_MODES.includes(msg.mode as RoomMode)) return;
+    const mode = msg.mode as RoomMode;
+    const max = Math.max(...MODE_PLAYERS[mode]);
+    if (this.seats.filter((s) => s !== null && !s.bot).length > max) {
+      client.send('error', { type: 'error', message: `Trop de joueurs pour ce mode (${max} au maximum).` } satisfies ServerMessage);
       return;
     }
-    this.startMatch();
+    for (let i = this.seats.length - 1; i > 0 && this.seats.filter((s) => s !== null).length > max; i--) {
+      if (this.seats[i]?.bot) this.seats[i] = null;
+    }
+    this.mode = mode;
+    this.broadcastLobby();
+  }
+
+  /** Hôte, après un combat ou pendant la sélection : retour au salon. */
+  private onBackToLobby(client: Client): void {
+    if (this.slotOf(client.sessionId) !== 0 || (this.phase !== 'result' && this.phase !== 'pick')) return;
+    this.toLobby();
+  }
+
+  /** Retour au salon : les places redeviennent quatre, chacun doit revalider. */
+  private toLobby(): void {
+    this.phase = 'lobby';
+    this.world = null;
+    while (this.seats.length < this.size) this.seats.push(null);
+    for (const s of this.seats) if (s && !s.bot) s.ready = false;
+    this.rematch = this.seats.map(() => false);
+    this.broadcastLobby();
+  }
+
+  /**
+   * Seul l'hôte (slot 0) lance la partie, avec un nombre de combattants valable pour le mode. Tout le monde passe
+   * alors à la sélection des combattants ; si tous étaient déjà prêts, le combat part directement.
+   */
+  private onStart(client: Client): void {
+    if (this.slotOf(client.sessionId) !== 0 || this.phase !== 'lobby') return;
+    const taken = this.seats.filter((s): s is Seat => s !== null);
+    const counts = MODE_PLAYERS[this.mode];
+    if (!counts.includes(taken.length)) {
+      client.send('error', { type: 'error', message: `Ce mode se joue à ${counts.join(' ou ')} combattants (bots compris).` } satisfies ServerMessage);
+      return;
+    }
+    // Places tassées : les combattants occupent les emplacements 0..n-1 du monde.
+    this.seats = taken;
+    if (taken.every((s) => s.ready)) {
+      this.startMatch();
+      return;
+    }
+    this.phase = 'pick';
+    this.broadcastLobby();
   }
 
   private onInput(client: Client, msg: { t?: unknown; i?: unknown }): void {
@@ -297,7 +374,7 @@ export abstract class FightRoom extends Room {
       s ? { name: s.name, hero: s.hero, ready: s.ready, connected: s.connected, bot: s.bot } : null,
     );
     return {
-      code: this.code, phase: this.phase, arena: this.arena, size: this.size, players,
+      code: this.code, phase: this.phase, arena: this.arena, size: this.seats.length, mode: this.mode, players,
       rematch: this.rematch, ffa: this.ffa, team: this.team, winner: this.winner, winnerTeam: this.winnerTeam,
       placements: this.placements,
     };
@@ -312,23 +389,15 @@ export abstract class FightRoom extends Room {
   }
 }
 
-/** Duel à deux joueurs (manches au meilleur des 3). */
+/** Salles historiques : même salle, mode de départ différent. */
 export class DuelRoom extends FightRoom {
-  readonly size = 2;
-  readonly ffa = false;
-  readonly team = false;
+  protected override initialMode: RoomMode = 'duel';
 }
 
-/** Quatre combattants, dernier debout. Places libres comblées par des bots. */
 export class FourRoom extends FightRoom {
-  readonly size = 4;
-  readonly ffa = true;
-  readonly team = false;
+  protected override initialMode: RoomMode = 'ffa';
 }
 
-/** Quatre combattants en deux équipes de deux (2v2). */
 export class TeamRoom extends FightRoom {
-  readonly size = 4;
-  readonly ffa = false;
-  readonly team = true;
+  protected override initialMode: RoomMode = 'team';
 }

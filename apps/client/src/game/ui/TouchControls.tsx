@@ -33,14 +33,14 @@ function HoldButton({ action, label, className = '', color = '#fff' }: { action:
 
 const DEAD = 0.32;
 
-/** Croix directionnelle analogique : gauche/droite = marche, haut = saut, bas = accroupi. */
+/**
+ * Croix analogique : gauche/droite = marche (double geste vers l'avant = sprint), haut = saut, bas = accroupi.
+ * Double geste vers le haut ou le bas, puis tenir : pas de côté (tourner autour de l'adversaire).
+ */
 function Stick() {
   const pad = useRef<HTMLDivElement>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const active = useRef<Set<Action>>(new Set());
-  const lastDir = useRef<'left' | 'right' | null>(null);
-  const lastTap = useRef(0);
-  const boost = useRef<'left' | 'right' | null>(null);
 
   const apply = (next: Set<Action>) => {
     for (const a of active.current) if (!next.has(a)) touchUp(a);
@@ -61,16 +61,6 @@ function Stick() {
     const next = new Set<Action>();
     if (dx > DEAD) next.add('screenRight');
     if (dx < -DEAD) next.add('screenLeft');
-    // Double geste vers l'avant / l'arrière : sprint (ou pas arrière) maintenu tant que la croix reste dans ce sens.
-    const now = performance.now();
-    const dir = dx > DEAD ? 'right' : dx < -DEAD ? 'left' : null;
-    if (dir && dir !== lastDir.current) {
-      if (now - lastTap.current < 320) boost.current = dir;
-      lastTap.current = now;
-    }
-    if (!dir) boost.current = null;
-    lastDir.current = dir;
-    if (boost.current) next.add('shift');
     if (dy < -DEAD) next.add('jump');
     if (dy > DEAD) next.add('crouch');
     apply(next);
@@ -78,8 +68,6 @@ function Stick() {
   const end = () => {
     apply(new Set());
     setKnob({ x: 0, y: 0 });
-    lastDir.current = null;
-    boost.current = null;
   };
 
   return (
@@ -95,8 +83,8 @@ function Stick() {
       onContextMenu={(e) => e.preventDefault()}
       className="relative size-36 shrink-0 touch-none select-none rounded-full border-2 border-white/30 bg-black/35 sm:size-44 short:size-28"
     >
-      <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] text-white/40">SAUT</span>
-      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-white/40">BAS</span>
+      <span className="absolute left-1/2 top-1 -translate-x-1/2 text-center text-[9px] leading-tight text-white/40">SAUT<br />×2 FOND</span>
+      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center text-[9px] leading-tight text-white/40">×2 ÉCRAN<br />BAS</span>
       <div
         className="absolute left-1/2 top-1/2 size-14 rounded-full border-2 border-iron-cyan bg-iron-cyan/30 shadow-[0_0_16px_-2px_#34e0ff]"
         style={{ transform: `translate(calc(-50% + ${knob.x * 40}%), calc(-50% + ${knob.y * 40}%))` }}
@@ -134,11 +122,6 @@ export function TouchControls() {
         className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] ${attacksRight ? '' : 'flex-row-reverse'}`}
       >
         <div className="pointer-events-auto flex flex-col items-center gap-3 short:gap-1.5">
-          <div className="flex gap-2">
-            <HoldButton action="intoScreen" label="FOND" className="h-9 w-14 text-[10px] short:h-7 short:w-12 short:text-[9px]" />
-            <HoldButton action="towardScreen" label="ÉCRAN" className="h-9 w-14 text-[10px] short:h-7 short:w-12 short:text-[9px]" />
-            <HoldButton action="shift" label="COURSE" className="h-9 w-16 text-[10px] short:h-7 short:w-14 short:text-[9px]" color="#ffb020" />
-          </div>
           <Stick />
         </div>
 

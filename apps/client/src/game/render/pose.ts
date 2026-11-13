@@ -1,4 +1,4 @@
-import { GETUP_TICKS, getMove, type Fighter, type MoveDef, type MoveId, type World } from '@iron/engine';
+import { DASH_TICKS, GETUP_TICKS, getMove, type Fighter, type MoveDef, type MoveId, type World } from '@iron/engine';
 import type { BoneName } from './rig';
 
 /**
@@ -165,14 +165,17 @@ function idle(t: number, st: AnimStyle): Pose {
 function extension(m: MoveDef, frame: number): number {
   if (frame <= m.startup) {
     const t = frame / m.startup;
-    const wind = 0.4;
-    if (t < wind) return -0.2 * sm(0, wind, t);
+    // Armé bien visible (le membre et le buste partent en arrière), puis départ qui accélère jusqu'à l'impact.
+    const wind = 0.45;
+    if (t < wind) return -0.35 * sm(0, wind, t);
     const u = (t - wind) / (1 - wind);
-    return -0.2 + 1.2 * (1 - (1 - u) ** 3);
+    return -0.35 + 1.35 * u * u;
   }
-  if (frame <= m.startup + m.active) return 1;
+  // Impact : léger dépassement qui retombe pendant les frames actives.
+  if (frame <= m.startup + m.active) return 1 + 0.1 * (1 - (frame - m.startup) / Math.max(1, m.active));
+  // Retour en garde : le membre reste un instant tendu, puis revient sans à-coup.
   const r = (frame - m.startup - m.active) / m.recovery;
-  return 1 - sm(0, 0.85, r);
+  return 1 - sm(0.12, 1, r);
 }
 
 /** Niveau d'accroupi pendant le coup (0 debout, 1 accroupi). */
@@ -385,6 +388,32 @@ export function throwDefenderPose(limb: MoveDef['limb'], p: number): Pose {
   }
 }
 
+/**
+ * Pas lancé : impulsion (le corps s'abaisse et plonge vers l'avant, grande foulée, bras en arrière), puis
+ * freinage et retour en garde. En arrière : petit saut de recul, buste redressé, bras en garde.
+ */
+function dashPose(fwd: boolean, q: number): Pose {
+  const p = clamp01(q);
+  const push = sm(0, 0.25, p) * (1 - sm(0.6, 1, p));
+  const brake = sm(0.45, 0.75, p) * (1 - sm(0.8, 1, p));
+  if (fwd) {
+    return pose({
+      upperArmL: [lerp(-1.1, 0.5, push), 0, 0.25], forearmL: [lerp(-1.5, -0.6, push), 0, 0],
+      upperArmR: [lerp(-1.0, -1.3, push), 0, -0.2], forearmR: [lerp(-1.6, -1.2, push), 0, 0],
+      spine: [0.08 + 0.5 * push - 0.15 * brake, 0, 0], head: [-0.35 * push, 0, 0],
+      thighL: [-0.3 - 0.85 * push + 0.2 * brake, 0, 0.1], shinL: [0.45 + 0.5 * push, 0, 0],
+      thighR: [0.15 + 0.75 * push, 0, -0.1], shinR: [0.15 + 0.9 * push, 0, 0],
+    }, { hipsY: -0.16 * push - 0.06 * brake, bodyYaw: 0.15 * push });
+  }
+  const hop = Math.sin(Math.PI * clamp01(p / 0.7));
+  return pose({
+    ...guard(0),
+    spine: [0.05 - 0.2 * push, 0, 0],
+    thighL: [-0.3 + 0.35 * hop, 0, 0.12], shinL: [0.45 + 0.4 * hop, 0, 0],
+    thighR: [0.15 - 0.3 * hop, 0, -0.12], shinR: [0.15 + 0.5 * hop, 0, 0],
+  }, { hipsY: 0.06 * hop - 0.08 * brake });
+}
+
 function crouchPose(block: boolean): Pose {
   const arms: RotMap = block
     ? guard(0)
@@ -454,7 +483,8 @@ function endPose(kind: EndKind, t: number, st: AnimStyle): Pose {
 }
 
 /** Pose à partir de l'état complet du combattant (action, coup en cours, frame) et du monde (projections). */
-export function poseFor(f: Fighter, t: number, w: World): Pose {
+/** `sub` : fraction du tick en cours (0..1), pour des coups fluides entre deux pas de simulation. */
+export function poseFor(f: Fighter, t: number, w: World, sub = 0): Pose {
   const st = styleOf(f.characterId);
   if (f.action === 'thrown' && f.thrownBy !== null) {
     const a = w.fighters[f.thrownBy];
@@ -464,7 +494,7 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
   switch (f.action) {
     case 'attack':
       if (!f.move) return idle(t, st);
-      return attackPose(f.move, getMove(f.characterId, f.move), f.moveFrame);
+      return attackPose(f.move, getMove(f.characterId, f.move), f.moveFrame + sub);
     case 'walkFwd':
       return cycle(t * 8, 0.45, 0.08, 0.15, st);
     case 'walkBack':
@@ -486,7 +516,7 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
     case 'dodge':
       return dodgePose(f.sub, f.moveFrame);
     case 'dash':
-      return f.sub === 'fwd' ? cycle(t * 14, 0.8, 0.4, 0.4, st) : cycle(-t * 12, 0.5, -0.1, 0.2, st);
+      return dashPose(f.sub === 'fwd', (f.moveFrame + sub) / DASH_TICKS);
     case 'parry':
       return pose({
         upperArmL: [-1.2, 0, 0.3], forearmL: [-1.0, 0, 0], upperArmR: [-1.2, 0, -0.3], forearmR: [-1.0, 0, 0], ...STANCE, spine: [0.1, 0, 0],

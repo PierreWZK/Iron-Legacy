@@ -13,11 +13,17 @@ import { arcadeFightOver } from './arcade/session';
 import { storyFightOver } from './story/session';
 import { robotFightOver } from './robots/session';
 import { onlineFightOver } from './online/session';
+import { whileHidden } from './online/background';
 import type { ArenaId } from './render/arenas';
 
 /** Pilote la sim à pas fixe depuis la boucle de rendu et pousse un résumé vers l'interface (10 Hz). */
 function Simulation({ kb }: { kb: KeyboardInput }) {
   const acc = useMemo(() => ({ since: 0, frames: 0, ended: false }), []);
+
+  // En ligne, le combat ne s'arrête pas quand l'onglet est caché (le serveur continue).
+  useEffect(() => whileHidden((d) => {
+    if (runtime.online) runtime.advance(d, kb);
+  }), [kb]);
 
   useFrame((_, delta) => {
     runtime.advance(delta, kb);

@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { fightAxis, runtime } from '../runtime';
+import { runtime } from '../runtime';
 
 const tmp = new THREE.Vector3();
 const look = new THREE.Vector3();
@@ -33,7 +33,7 @@ export function FightCamera() {
     let spread = 0;
     for (const q of pts) spread = Math.max(spread, Math.hypot(q.x - cx, q.z - cz));
 
-    const axis = fightAxis(w);
+    const axis = runtime.view;
     // Direction de visée = (axis.z, -axis.x) : la droite de l'écran est l'axe P1→P2.
     const fx = axis.z;
     const fz = -axis.x;

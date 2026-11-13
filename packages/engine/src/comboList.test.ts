@@ -59,8 +59,11 @@ function play(id: string, inputs: string[]): MoveId[] {
       tick(w, frameOf(token));
     }
     note();
-    tick(w, 0); // relâche : l'appui suivant doit être un nouveau front montant
-    note();
+    // Relâche (nouveau front montant au prochain appui), assez longtemps pour ne pas être lu comme une projection.
+    for (let r = 0; r < 4; r++) {
+      tick(w, 0);
+      note();
+    }
     if (i < inputs.length - 1) {
       // Laisse partir le coup suivant : on attend qu'il change, en gardant la direction lâchée.
       for (let g = 0; g < 45 && seen.length <= i; g++) {

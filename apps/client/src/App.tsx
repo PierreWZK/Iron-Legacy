@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { StoryScreen } from './game/ui/StoryScreens';
-import { onlineLeave } from './game/online/session';
+import { onlineLeave, onlineOpen, useOnline } from './game/online/session';
 import { OnlineScreen } from './game/ui/OnlineScreens';
 import { AccountScreen } from './game/ui/AccountScreens';
 import { RobotScreen } from './game/ui/RobotScreens';
@@ -22,6 +22,11 @@ const Scene = lazy(() => import('./game/Scene').then((m) => ({ default: m.Scene 
 export function App() {
   const screen = useApp((s) => s.screen);
   const runId = useApp((s) => s.runId);
+
+  // Lien d'invitation (?salon=CODE) : on ouvre directement l'écran en ligne.
+  useEffect(() => {
+    if (useOnline.getState().invite) onlineOpen();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

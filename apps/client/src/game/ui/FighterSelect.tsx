@@ -83,7 +83,7 @@ export function FighterSelect(p: FighterSelectProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const i = playable.indexOf(p.value);
-      const cols = 6;
+      const cols = 7;
       let next = i;
       if (e.key === 'ArrowRight') next = i + 1;
       else if (e.key === 'ArrowLeft') next = i - 1;
@@ -156,7 +156,7 @@ export function FighterSelect(p: FighterSelectProps) {
         </div>
 
         <footer className="flex flex-col items-center gap-3 px-6 pb-5 short:flex-row short:flex-wrap short:justify-center short:gap-2 short:pb-2">
-          <div className="grid grid-cols-6 gap-2 short:basis-full short:grid-cols-12 short:justify-center short:gap-1.5">
+          <div className="grid grid-cols-7 gap-2 short:basis-full short:grid-cols-[repeat(13,auto)] short:justify-center short:gap-1.5">
             {CHARACTER_IDS.map((id) => {
               const locked = !p.unlocked.includes(id);
               const active = id === p.value;
@@ -179,6 +179,19 @@ export function FighterSelect(p: FighterSelectProps) {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => {
+                const pool = playable.filter((id) => id !== p.value);
+                const pick = pool[Math.floor(Math.random() * pool.length)];
+                if (pick) p.onChange(pick);
+              }}
+              aria-label="Personnage aléatoire"
+              className="relative grid h-16 w-16 -skew-x-6 place-items-center overflow-hidden border-2 border-dashed border-white/35 bg-black/50 transition-all hover:scale-105 hover:border-white/80 sm:h-20 sm:w-20 short:h-11 short:w-11"
+            >
+              <span className="font-display text-3xl text-white/70 short:text-xl">?</span>
+              <span className="absolute inset-x-0 bottom-0 bg-black/70 py-0.5 text-center font-display text-[9px] tracking-wider">ALÉATOIRE</span>
+            </button>
           </div>
           {p.footer}
           <SlantButton primary accent={accent} onClick={p.onConfirm}>{p.confirmLabel}</SlantButton>

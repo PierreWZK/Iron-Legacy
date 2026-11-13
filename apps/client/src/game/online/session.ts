@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { isRoomCode, ROOM_CODE_CHARS, type LobbyState, type ServerMessage } from '@iron/engine';
+import { isRoomCode, ROOM_CODE_CHARS, type LobbyState, type RoomMode, type ServerMessage } from '@iron/engine';
 import { runtime } from '../runtime';
 import { backToMenu, useApp } from '../store';
-import { closeRoom, openRoom, sendMessage, type RoomKind } from './connection';
+import { closeRoom, openRoom, sendMessage } from './connection';
 
-export type OnlineScreen = 'home' | 'lobby' | 'match' | 'result';
+export type OnlineScreen = 'home' | 'lobby' | 'pick' | 'match' | 'result';
 
 export interface OnlineState {
   screen: OnlineScreen;
@@ -12,10 +12,10 @@ export interface OnlineState {
   code: string;
   /** Place occupée dans le salon (0 = hôte). Connue dès le message « welcome ». */
   slot: number;
-  /** Nombre de places du salon (2 ou 4). */
+  /** Nombre de places du salon. */
   size: number;
-  /** Type du salon courant. */
-  kind: RoomKind;
+  /** Code reçu par un lien d'invitation (?salon=CODE), proposé sur l'écran d'accueil. */
+  invite: string;
   lobby: LobbyState | null;
   error: string | null;
   connected: boolean;
@@ -27,11 +27,11 @@ export interface OnlineState {
 
 export const useOnline = create<OnlineState>(() => ({
   screen: 'home',
-  name: 'Joueur',
+  name: savedName(),
   code: '',
   slot: 0,
-  size: 2,
-  kind: 'duel',
+  size: 4,
+  invite: inviteFromUrl(),
   lobby: null,
   error: null,
   connected: false,
@@ -40,6 +40,30 @@ export const useOnline = create<OnlineState>(() => ({
 }));
 
 let pingTimer: ReturnType<typeof setInterval> | null = null;
+
+const NAME_KEY = 'iron-legacy.online-name';
+
+function savedName(): string {
+  try {
+    return localStorage.getItem(NAME_KEY) || 'Joueur';
+  } catch {
+    return 'Joueur';
+  }
+}
+
+function inviteFromUrl(): string {
+  const c = new URLSearchParams(window.location.search).get('salon')?.toUpperCase() ?? '';
+  return isRoomCode(c) ? c : '';
+}
+
+/** Lien d'invitation vers un salon : ouvre le jeu directement sur l'écran pour le rejoindre. */
+export function inviteLink(code: string): string {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('salon', code);
+  return url.toString();
+}
 
 function randomCode(): string {
   let s = '';
@@ -54,32 +78,46 @@ export function onlineOpen(): void {
 }
 
 export function onlineSetName(name: string): void {
-  useOnline.setState({ name: name.slice(0, 16) });
+  const n = name.slice(0, 16);
+  useOnline.setState({ name: n });
+  try {
+    localStorage.setItem(NAME_KEY, n);
+  } catch {
+    /* stockage indisponible : le pseudo vaut pour cette visite */
+  }
 }
 
-/** Crée un salon : 2 places (duel) ou 4 places (dernier debout). */
-export async function onlineHost(kind: RoomKind = 'duel'): Promise<void> {
-  await connect('create', randomCode(), 0, kind);
+/** Crée un salon de quatre places ; le mode de départ peut être changé ensuite par l'hôte. */
+export async function onlineHost(mode: RoomMode = 'duel'): Promise<void> {
+  await connect('create', randomCode(), 0, mode);
 }
 
-export async function onlineJoin(code: string, kind: RoomKind): Promise<void> {
+export async function onlineJoin(code: string): Promise<void> {
   const c = code.trim().toUpperCase();
   if (!isRoomCode(c)) {
     useOnline.setState({ error: 'Code invalide : 5 caractères (lettres et chiffres 2 à 9).' });
     return;
   }
-  await connect('join', c, 1, kind);
+  await connect('join', c, 1, 'duel');
 }
 
-async function connect(mode: 'create' | 'join', code: string, slot: number, kind: RoomKind): Promise<void> {
-  const size = kind === 'duel' ? 2 : 4;
-  useOnline.setState({ error: null, code, slot, size, kind, connected: false, lobby: null, screen: 'lobby', ping: null, desyncs: 0 });
+async function connect(mode: 'create' | 'join', code: string, slot: number, gameMode: RoomMode): Promise<void> {
+  useOnline.setState({ error: null, code, slot, size: 4, connected: false, lobby: null, screen: 'lobby', ping: null, desyncs: 0 });
   try {
-    await openRoom(mode, code, useOnline.getState().name, kind, handle, onClose);
+    await openRoom(mode, code, useOnline.getState().name, gameMode, handle, onClose);
+    // L'invitation est consommée : on retire ?salon= de l'adresse.
+    if (useOnline.getState().invite) {
+      useOnline.setState({ invite: '' });
+      const url = new URL(window.location.href);
+      url.searchParams.delete('salon');
+      window.history.replaceState(null, '', url);
+    }
     useOnline.setState({ connected: true });
     startPing();
   } catch (e) {
-    useOnline.setState({ screen: 'home', error: e instanceof Error ? e.message : 'Connexion impossible.' });
+    const msg = e instanceof Error ? e.message : '';
+    const error = /no rooms found|not found/i.test(msg) ? 'Salon introuvable : vérifie le code ou demande un nouveau lien.' : msg || 'Connexion impossible.';
+    useOnline.setState({ screen: 'home', error });
   }
 }
 
@@ -113,7 +151,9 @@ function handle(m: ServerMessage): void {
     case 'lobby': {
       const st = useOnline.getState();
       useOnline.setState({ lobby: m.state, size: m.state.size });
-      if (st.screen !== 'match' && st.screen !== 'result') useOnline.setState({ screen: 'lobby' });
+      // Sélection des combattants, ou retour au salon décidé par l'hôte (après un combat, pendant la sélection).
+      if (m.state.phase === 'pick' && st.screen !== 'match') useOnline.setState({ screen: 'pick' });
+      else if (st.screen !== 'match' && (st.screen !== 'result' || m.state.phase === 'lobby')) useOnline.setState({ screen: 'lobby' });
       return;
     }
     case 'start': {
@@ -168,6 +208,16 @@ export function onlineSetReady(ready: boolean): void {
 
 export function onlineSetArena(arena: string): void {
   sendMessage({ type: 'arena', arena });
+}
+
+/** Hôte : change le mode de jeu du salon. */
+export function onlineSetMode(mode: RoomMode): void {
+  sendMessage({ type: 'mode', mode });
+}
+
+/** Hôte, après un combat : tout le monde revient au salon. */
+export function onlineBackToLobby(): void {
+  sendMessage({ type: 'lobby' });
 }
 
 /** Hôte : ajoute ou retire un bot. */

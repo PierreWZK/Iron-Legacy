@@ -82,9 +82,17 @@ describe('enchaînements (strings)', () => {
   it('pas d\'enchaînement pendant les frames de démarrage (le coup en cours continue)', () => {
     const w = duel(4);
     feed(w, 1, Btn.LP);
+    feed(w, 4, 0);
+    feed(w, 1, Btn.LP);
+    expect(w.fighters[0]!.move).toBe('jab');
+  });
+
+  it('LP puis RP presque ensemble : la projection remplace le jab', () => {
+    const w = duel(4);
+    feed(w, 1, Btn.LP);
     feed(w, 1, 0);
     feed(w, 1, Btn.RP);
-    expect(w.fighters[0]!.move).toBe('jab');
+    expect(w.fighters[0]!.move).toBe('throw');
   });
 
   it("l'enchaînement respecte la direction tenue (jab puis bas + RK = balayage)", () => {
