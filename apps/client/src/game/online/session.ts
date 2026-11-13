@@ -190,7 +190,16 @@ function handle(m: ServerMessage): void {
       return;
     }
     case 'pong':
-      useOnline.setState({ ping: Math.max(0, Date.now() - m.ts) });
+    {
+      const ping = Math.max(0, Date.now() - m.ts);
+      useOnline.setState({ ping });
+      // Lissage (une hausse compte plus vite qu'une baisse) et plafond : un ping isolé très lent (onglet ralenti)
+      // ne doit pas donner une avance énorme, qui retarderait tout ce qu'on voit des adversaires.
+      const p = Math.min(ping, 400);
+      runtime.rtt += (p - runtime.rtt) * (p > runtime.rtt ? 0.3 : 0.15);
+      runtime.net.late = m.late ?? 0;
+      runtime.net.hz = m.hz ?? 0;
+    }
       return;
     case 'error':
       useOnline.setState({ error: m.message });

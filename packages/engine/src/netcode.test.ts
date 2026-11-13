@@ -46,6 +46,20 @@ describe('netcode — rollback', () => {
     expect(client.rollbacks).toBeGreaterThan(0);
   });
 
+  it('client en avance : l\'adversaire est prédit avec sa dernière entrée confirmée, pas figé', () => {
+    const lead = 8;
+    const reference = makeWorld();
+    const client = new Rollback(0, makeWorld());
+    // L'adversaire avance en continu ; le serveur confirme chaque tick `lead` ticks après que le client l'a joué.
+    for (let t = 0; t < 120; t++) {
+      client.step(0);
+      if (t >= lead) client.confirm(t - lead, [0, Btn.Fwd]);
+    }
+    for (let t = 0; t < 120; t++) stepWorld(reference, [0, Btn.Fwd]);
+    // Prédiction juste : l'état courant égale déjà la simulation réelle, sans attendre les confirmations.
+    expect(worldHash(client.world)).toBe(worldHash(reference));
+  });
+
   it('sans latence, aucune correction n\'est nécessaire si les prédictions tiennent', () => {
     const client = new Rollback(0, makeWorld());
     for (let t = 0; t < 120; t++) {

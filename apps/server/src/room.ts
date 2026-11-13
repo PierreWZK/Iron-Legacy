@@ -57,6 +57,16 @@ export class FightRoom extends Room {
   private placements: number[] = [];
   private pending: Map<number, number>[] = [];
   private last: number[] = [];
+  /** Tick de la dernière entrée en retard prise en compte (une entrée plus ancienne encore est ignorée). */
+  private lateT: number[] = [];
+  /** Diagnostic : entrées arrivées en retard par place, cadence réelle de la boucle (ticks par seconde). */
+  private lateCount: number[] = [];
+  private hz = 60;
+  private hzCount = 0;
+  private hzStart = performance.now();
+  /** Temps réel pas encore joué (ms) et dernier passage de la boucle. */
+  private acc = 0;
+  private lastAt = performance.now();
   /** Tirages des bots : séparés du RNG du monde, pour que les clients restent synchronisés. */
   private botRng = makeRng(1);
 
@@ -67,6 +77,7 @@ export class FightRoom extends Room {
     this.rematch = Array.from({ length: this.size }, () => false);
     this.pending = Array.from({ length: this.size }, () => new Map<number, number>());
     this.last = Array.from({ length: this.size }, () => 0);
+    this.lateT = Array.from({ length: this.size }, () => -1);
     this.maxClients = this.size;
     this.setMetadata({ code: this.code });
     this.onMessage('hero', (client, msg: { hero?: unknown }) => this.onHero(client, msg));
@@ -77,11 +88,16 @@ export class FightRoom extends Room {
     this.onMessage('lobby', (client) => this.onBackToLobby(client));
     this.onMessage('start', (client) => this.onStart(client));
     this.onMessage('input', (client, msg: { t?: unknown; i?: unknown }) => this.onInput(client, msg));
-    this.onMessage('ping', (client, msg: { ts?: unknown }) =>
-      client.send('pong', { type: 'pong', ts: Number(msg.ts) || 0 } satisfies ServerMessage));
+    this.onMessage('ping', (client, msg: { ts?: unknown }) => {
+      const slot = this.slotOf(client.sessionId);
+      client.send('pong', {
+        type: 'pong', ts: Number(msg.ts) || 0, late: slot >= 0 ? this.lateCount[slot] ?? 0 : 0, hz: this.hz,
+      } satisfies ServerMessage);
+    });
     this.onMessage('rematch', (client) => this.onRematch(client));
     this.onMessage('resync', (client) => this.onResync(client));
-    this.setSimulationInterval(() => this.update(), TICK_MS);
+    // Passage fréquent (4 ms) : les ticks partent au plus près de leur heure, l'horloge de update() fixe la cadence.
+    this.setSimulationInterval(() => this.update(), 4);
   }
 
   override onJoin(client: Client, options: { name?: unknown; token?: unknown }): void {
@@ -276,9 +292,20 @@ export class FightRoom extends Room {
     if (slot < 0 || !this.running || !this.world) return;
     const t = Number(msg.t);
     const i = Number(msg.i);
-    if (!Number.isInteger(t) || !Number.isInteger(i) || t < this.world.tick) return; // trop ancien : ignoré
+    if (!Number.isInteger(t) || !Number.isInteger(i)) return;
     // Les bits invalides sont tronqués aux 11 boutons connus.
-    this.pending[slot]!.set(t, i & 0x7ff);
+    const bits = i & 0x7ff;
+    if (t < this.world.tick) {
+      this.lateCount[slot] = (this.lateCount[slot] ?? 0) + 1;
+      // En retard (réseau) : appliquée au prochain tick plutôt que perdue. Sinon un relâchement de touche
+      // perdu laisserait le combattant marcher tout seul chez les autres joueurs.
+      if (t >= this.lateT[slot]!) {
+        this.lateT[slot] = t;
+        if (!this.pending[slot]!.has(this.world.tick)) this.last[slot] = bits;
+      }
+      return;
+    }
+    this.pending[slot]!.set(t, bits);
   }
 
   private onRematch(client: Client): void {
@@ -305,6 +332,10 @@ export class FightRoom extends Room {
     this.rematch = seats.map(() => false);
     this.pending = seats.map(() => new Map<number, number>());
     this.last = seats.map(() => 0);
+    this.lateT = seats.map(() => -1);
+    this.lateCount = seats.map(() => 0);
+    this.acc = 0;
+    this.lastAt = performance.now();
     this.botRng = makeRng(this.seq * 7919 + 17);
     for (const client of this.clients) {
       const slot = this.slotOf(client.sessionId);
@@ -317,7 +348,29 @@ export class FightRoom extends Room {
   }
 
   /** Une frame serveur : entrées humaines (ou dernière connue) et bots, puis un pas, puis diffusion. */
+  /**
+   * Horloge à pas fixe : le minuteur de Node est imprécis (un intervalle de 16,7 ms tombe souvent à 30 ms, surtout
+   * sous Windows ou sur une machine chargée). On compte le temps réel écoulé et on joue autant de ticks qu'il faut
+   * pour tenir 60 par seconde ; sinon le serveur prend du retard sur les clients.
+   */
   private update(): void {
+    const now = performance.now();
+    this.acc += Math.min(now - this.lastAt, 250);
+    this.lastAt = now;
+    if (now - this.hzStart >= 1000) {
+      this.hz = Math.round((this.hzCount * 1000) / (now - this.hzStart));
+      this.hzCount = 0;
+      this.hzStart = now;
+    }
+    while (this.acc >= TICK_MS) {
+      this.acc -= TICK_MS;
+      if (!this.running) continue;
+      this.hzCount++;
+      this.step();
+    }
+  }
+
+  private step(): void {
     if (!this.running || !this.world) return;
     const world = this.world;
     const t = world.tick;

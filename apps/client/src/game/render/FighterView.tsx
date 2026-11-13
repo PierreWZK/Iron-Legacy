@@ -10,7 +10,7 @@ import { visualFor } from './visuals';
 export function FighterView({ index, characterId }: { index: number; characterId: string }) {
   const spec = useMemo(() => visualFor(characterId), [characterId]);
   const rig = useMemo(() => buildRig(spec), [spec]);
-  const s = useMemo(() => ({ yaw: 0, t: 0, bodyYaw: 0, hipsY: 0, lying: 0 }), []);
+  const s = useMemo(() => ({ yaw: 0, t: 0, bodyYaw: 0, hipsY: 0, lying: 0, px: 0, pz: 0, init: false }), []);
 
   useFrame((_, delta) => {
     const w = runtime.world;
@@ -33,11 +33,21 @@ export function FighterView({ index, characterId }: { index: number; characterId
     s.lying = xf ? (xf.centerY < 0.35 ? 1 : 0) : s.lying + ((pose.lying ? 1 : 0) - s.lying) * k;
     const ground = THREE.MathUtils.lerp(prev.pos.y, cur.pos.y, a);
     const centerY = xf ? xf.centerY * spec.height : THREE.MathUtils.lerp(rig.pivotH, 0.2, s.lying);
-    rig.root.position.set(
-      THREE.MathUtils.lerp(prev.pos.x, cur.pos.x, a),
-      ground + centerY,
-      THREE.MathUtils.lerp(prev.pos.z, cur.pos.z, a),
-    );
+    const tx = THREE.MathUtils.lerp(prev.pos.x, cur.pos.x, a);
+    const tz = THREE.MathUtils.lerp(prev.pos.z, cur.pos.z, a);
+    // En ligne, une correction (entrée adverse arrivée après la prédiction) déplace d'un coup le combattant :
+    // on fond l'écart en quelques images au lieu de le téléporter. Grand écart (projection, réapparition) : direct.
+    const err = Math.hypot(tx - s.px, tz - s.pz);
+    if (runtime.online && s.init && err < 1.5) {
+      const ks = 1 - Math.exp(-delta * (index === runtime.online.localIndex ? 30 : 16));
+      s.px += (tx - s.px) * ks;
+      s.pz += (tz - s.pz) * ks;
+    } else {
+      s.px = tx;
+      s.pz = tz;
+      s.init = true;
+    }
+    rig.root.position.set(s.px, ground + centerY, s.pz);
 
     // Lissage de l'orientation : évite les claquements quand la cible change d'angle.
     let dy = Math.atan2(cur.facing.x, cur.facing.z) - s.yaw;

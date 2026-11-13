@@ -1054,3 +1054,20 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - **Problème trouvé** : après un redéploiement, nginx renvoie 404 sur les anciens fichiers (`assets/index-….js`, `visuals-….js`). Un onglet ouvert avant la mise à jour ne pouvait plus charger la scène de combat. Corrigé : `index.html` en `no-cache` (`apps/client/nginx.conf`), `assets/` en vrai 404, et le client recharge la page une fois sur `vite:preloadError` (`main.tsx`).
 - `GET /` sur l'API restait sans réponse : `/` et `/health` répondent `ok` (`server/api.ts`).
 - **Bug corrigé** : en ligne, l'écran de fin affichait DÉFAITE à tout joueur qui n'était pas l'hôte, même vainqueur (le HUD comparait au combattant 0). Il compare maintenant à la place du joueur local ; en 2v2, à son équipe (`ui/Hud.tsx`).
+
+### Session 18 suite : fluidité en ligne (personnages qui glissent)
+
+- **Cause** : le client simulait au niveau du serveur, voire en retard. Une entrée envoyée pour le tick t arrivait après que le serveur l'avait joué : le serveur la jetait et rejouait l'ancienne entrée (un relâchement de touche perdu = le combattant continue de marcher chez les autres). Le client était ensuite corrigé en permanence. Mesuré contre la prod avec une sonde (même boucle que le client) : **0 %** des entrées utilisées telles qu'envoyées.
+- **Correction client** (`runtime.advanceOnline`) : le client joue en avance de `ping + 3` ticks sur le dernier tick reçu (ping lissé, une hausse est prise tout de suite, `runtime.rtt` mis à jour par la session). Accélère ou ralentit de 25 % pour garder l'écart ; rattrapage d'un coup si le retard dépasse 6 ticks. Mesuré contre la prod : **100 %** des entrées à temps (361/361), 5 corrections en 10 s.
+- **Correction serveur** (`room.ts onInput`) : une entrée en retard n'est plus jetée, elle s'applique au tick suivant (sauf si une entrée plus récente est déjà là).
+- **Lissage visuel** (`FighterView`) : en ligne, quand une correction déplace un combattant (entrée adverse reçue après la prédiction), l'écart est fondu en quelques images au lieu d'une téléportation ; au-delà de 1,5 m (projection, réapparition), on va directement à la position.
+- Pas vérifié : le ressenti sur deux vraies machines (le panneau de test tourne à 2 images/s en arrière-plan).
+
+### Session 18 suite : adversaire en retard, serveur lent, diagnostic
+
+- **Commit de fluidité absent de la prod** : la PR 8 a été fusionnée avant l'ajout du commit « fluidité en ligne ». Il est repris ici.
+- **Prédiction figée** (`netcode.ts Rollback.confirm`) : la dernière entrée connue d'un adversaire n'était mise à jour que pour une confirmation d'un tick futur. Le client jouant en avance, toutes les confirmations portent sur des ticks passés : l'adversaire était toujours prédit immobile, donc vu en retard de toute l'avance du client. Maintenant : la confirmation la plus récente met à jour la prédiction, et les ticks déjà joués non confirmés sont re-prédits (rollback depuis le premier tick changé). Test dédié dans `netcode.test.ts`.
+- **Serveur à 42 Hz** (mesuré en local) : la boucle suivait le minuteur de Node. `room.ts update()` est maintenant une horloge à pas fixe (temps réel accumulé, autant de ticks que nécessaire, passage toutes les 4 ms). Mesuré en local : 60 Hz.
+- **Ping estimé** : plus de prise immédiate d'une hausse ; lissage (0,3 à la hausse, 0,15 à la baisse) et plafond 400 ms.
+- **Diagnostic** : panneau F3 (ou `?debug` dans l'adresse) en ligne : ping, avance visée et réelle, corrections par seconde, ticks reçus par seconde, cadence serveur (`hz` dans le pong), plus grand trou entre deux ticks, entrées en retard côté serveur (`late` dans le pong), rattrapages et attentes. `?lag=200` ajoute 200 ms d'aller-retour (test sur une seule machine).
+- Pas vérifié : le ressenti sur deux vraies machines.
