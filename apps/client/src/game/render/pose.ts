@@ -412,6 +412,47 @@ function dodgePose(sub: Fighter['sub'], frame: number): Pose {
   return pose({ ...guard(0), ...STANCE, spine: [0.05, 0, 0] }, { bodyYaw: (sub === 'left' ? 0.6 : -0.6) * k });
 }
 
+
+/** Animations de fin : victoire de manche, victoire de partie, défaite de partie. */
+export type EndKind = 'round' | 'match' | 'defeat';
+
+/**
+ * Pose de fin de combat. Le tempo et l'ampleur viennent du style du personnage (`st`) : un boxeur saute et frappe
+ * l'air, un robot lève un bras à angle droit, une bête hurle en se cabrant.
+ */
+function endPose(kind: EndKind, t: number, st: AnimStyle): Pose {
+  const tempo = st.hz * 0.5;
+  const pump = Math.sin(t * tempo);
+  if (kind === 'round') {
+    // Poing levé qui pompe (une fois par seconde environ), tronc qui se redresse.
+    const lift = 0.5 + 0.5 * Math.sin(t * tempo * 0.8);
+    return pose({
+      ...STANCE,
+      upperArmR: [-2.5 - 0.3 * pump, 0, -0.2], forearmR: [-0.4, 0, 0],
+      upperArmL: [-0.3, 0, 0.5 * st.wide * 5], forearmL: [-1.2, 0, 0],
+      spine: [-0.1 - 0.05 * lift * st.sway, 0, 0], head: [-0.1, 0, 0],
+    }, { hipsY: st.bounce * 0.05 * Math.abs(pump), bodyYaw: 0.25 * Math.sin(t * 1.5) });
+  }
+  if (kind === 'match') {
+    // Deux bras levés, sautillement, tour lent du corps devant la foule.
+    const hop = Math.abs(Math.sin(t * tempo));
+    return pose({
+      ...STANCE,
+      upperArmL: [-2.8 + 0.15 * pump, 0, 0.25], forearmL: [-0.1, 0, 0],
+      upperArmR: [-2.8 - 0.15 * pump, 0, -0.25], forearmR: [-0.1, 0, 0],
+      spine: [-0.15, 0, 0], head: [-0.25, 0, 0],
+      thighL: [-0.25 - 0.2 * hop, 0, 0], thighR: [-0.25 - 0.2 * hop, 0, 0],
+    }, { hipsY: 0.08 * hop * st.bounce + 0.04, bodyYaw: 0.6 * Math.sin(t * 0.7) });
+  }
+  // Défaite : tête basse, bras qui pendent, genoux qui plient, léger balancement.
+  const sink = Math.min(1, 0.5 + 0.5 * Math.sin(t * 0.8));
+  return pose({
+    upperArmL: [0.4, 0, 0.5], forearmL: [-0.2, 0, 0], upperArmR: [0.4, 0, -0.5], forearmR: [-0.2, 0, 0],
+    thighL: [-1.2, 0, 0], shinL: [1.5, 0, 0], thighR: [-1.0, 0, 0], shinR: [1.4, 0, 0],
+    spine: [0.55 + 0.05 * sink, 0, 0], head: [0.4, 0, 0],
+  }, { hipsY: -0.32, bodyYaw: 0.05 * Math.sin(t * 0.9) });
+}
+
 /** Pose à partir de l'état complet du combattant (action, coup en cours, frame) et du monde (projections). */
 export function poseFor(f: Fighter, t: number, w: World): Pose {
   const st = styleOf(f.characterId);
@@ -458,7 +499,6 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
         thighL: [-0.2, 0, 0.1], shinL: [0.6, 0, 0], thighR: [0.2, 0, -0.1], shinR: [0.4, 0, 0],
       }, { hipsY: -0.03 * k, bodyYaw: 0.18 * k });
     }
-    case 'knockdown':
     case 'thrown':
       return pose({ upperArmL: [0, 0, 0.9], upperArmR: [0, 0, -0.9], thighL: [0, 0, 0], thighR: [0, 0, 0] }, { lying: true });
     case 'getup': {
@@ -466,10 +506,10 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
       return pose({ ...guard(0), ...STANCE, spine: [0.5 * k, 0, 0] }, { hipsY: -0.3 * k, lying: k > 0.5 });
     }
     case 'victory':
-      return pose({
-        upperArmL: [-2.6, 0, 0.2], forearmL: [-0.2, 0, 0], upperArmR: [-2.6, 0, -0.2], forearmR: [-0.2, 0, 0],
-        ...STANCE, spine: [-0.05 + 0.03 * Math.sin(t * 4), 0, 0],
-      });
+      return endPose(w.match.phase === 'over' && w.match.matchWinner === f.id ? 'match' : 'round', t, st);
+    case 'knockdown':
+      if (w.match.phase === 'over' && w.match.matchWinner !== f.id) return endPose('defeat', t, st);
+      return pose({ upperArmL: [0, 0, 0.9], upperArmR: [0, 0, -0.9], thighL: [0, 0, 0], thighR: [0, 0, 0] }, { lying: true });
     default:
       return idle(t, st);
   }

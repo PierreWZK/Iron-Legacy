@@ -994,3 +994,9 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - Passer derrière l'adversaire (côté inversé au départ) : pas commencé.
 - Le double geste tactile est relatif à l'écran, pas au sens de la face du combattant : faux si le combattant regarde à gauche.
 - Pas de test navigateur de ce tour (connexion coupée).
+
+### Session 18 suite : fins de combat
+
+- **Victoire de manche, victoire de partie, défaite** : `render/pose.ts` (`endPose`). Victoire de manche = poing levé qui pompe ; victoire de partie = deux bras levés, sautillement ; défaite = tête basse, genoux pliés, à genoux. Tempo et ampleur viennent du style du personnage (`ANIM_STYLES`).
+- Limite : même forme de pose pour tous, seul le tempo et l'ampleur changent. Pas de geste unique par personnage.
+- Vérifié à l'écran par forçage d'état (KO, `matchWinner`) : « VICTOIRE » avec bras levés, « DÉFAITE » avec corps affaissé. Pas vérifié en mouvement réel.
