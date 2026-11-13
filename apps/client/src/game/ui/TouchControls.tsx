@@ -93,7 +93,7 @@ function Stick() {
       onPointerUp={end}
       onPointerCancel={end}
       onContextMenu={(e) => e.preventDefault()}
-      className="relative size-36 shrink-0 touch-none select-none rounded-full border-2 border-white/30 bg-black/35 sm:size-44"
+      className="relative size-36 shrink-0 touch-none select-none rounded-full border-2 border-white/30 bg-black/35 sm:size-44 short:size-28"
     >
       <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] text-white/40">SAUT</span>
       <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-white/40">BAS</span>
@@ -133,20 +133,20 @@ export function TouchControls() {
       <div
         className={`pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] ${attacksRight ? '' : 'flex-row-reverse'}`}
       >
-        <div className="pointer-events-auto flex flex-col items-center gap-3">
+        <div className="pointer-events-auto flex flex-col items-center gap-3 short:gap-1.5">
           <div className="flex gap-2">
-            <HoldButton action="intoScreen" label="FOND" className="h-9 w-14 text-[10px]" />
-            <HoldButton action="towardScreen" label="ÉCRAN" className="h-9 w-14 text-[10px]" />
-            <HoldButton action="shift" label="COURSE" className="h-9 w-16 text-[10px]" color="#ffb020" />
+            <HoldButton action="intoScreen" label="FOND" className="h-9 w-14 text-[10px] short:h-7 short:w-12 short:text-[9px]" />
+            <HoldButton action="towardScreen" label="ÉCRAN" className="h-9 w-14 text-[10px] short:h-7 short:w-12 short:text-[9px]" />
+            <HoldButton action="shift" label="COURSE" className="h-9 w-16 text-[10px] short:h-7 short:w-14 short:text-[9px]" color="#ffb020" />
           </div>
           <Stick />
         </div>
 
-        <div className="pointer-events-auto mb-2 grid grid-cols-2 gap-3">
-          <HoldButton action="lp" label="POING G" className="size-16 text-[10px] sm:size-20" color="#ffb020" />
-          <HoldButton action="rp" label="POING D" className="size-16 text-[10px] sm:size-20" color="#ff4a3a" />
-          <HoldButton action="lk" label="PIED G" className="size-16 text-[10px] sm:size-20" color="#34e0ff" />
-          <HoldButton action="rk" label="PIED D" className="size-16 text-[10px] sm:size-20" color="#7dff9a" />
+        <div className="pointer-events-auto mb-2 grid grid-cols-2 gap-3 short:mb-0 short:gap-2">
+          <HoldButton action="lp" label="POING G" className="size-16 text-[10px] sm:size-20 short:size-12 short:text-[9px]" color="#ffb020" />
+          <HoldButton action="rp" label="POING D" className="size-16 text-[10px] sm:size-20 short:size-12 short:text-[9px]" color="#ff4a3a" />
+          <HoldButton action="lk" label="PIED G" className="size-16 text-[10px] sm:size-20 short:size-12 short:text-[9px]" color="#34e0ff" />
+          <HoldButton action="rk" label="PIED D" className="size-16 text-[10px] sm:size-20 short:size-12 short:text-[9px]" color="#7dff9a" />
         </div>
       </div>
 

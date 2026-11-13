@@ -49,7 +49,7 @@ function Corner({ id, name, value, max, wins, side }: { id: string; name: string
   const color = accentOf(id);
   return (
     <div className={`flex flex-1 items-end gap-3 ${right ? 'flex-row-reverse' : ''}`}>
-      <div className="relative h-16 w-16 shrink-0 -skew-x-6 overflow-hidden border-2 bg-black/70 sm:h-20 sm:w-20" style={{ borderColor: color, boxShadow: `0 0 14px -2px ${color}` }}>
+      <div className="relative h-16 w-16 shrink-0 -skew-x-6 overflow-hidden border-2 bg-black/70 sm:h-20 sm:w-20 short:h-11 short:w-11" style={{ borderColor: color, boxShadow: `0 0 14px -2px ${color}` }}>
         <Portrait id={id} className="h-full w-full" />
       </div>
       <div className="min-w-0 flex-1 space-y-1">
@@ -84,7 +84,7 @@ function Banner({ children, color = '#fff', sub }: { children: ReactNode; color?
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center">
       <div className="anim-pop -skew-x-6 bg-gradient-to-r from-transparent via-black/70 to-transparent px-24 py-4 text-center">
-        <div className="font-display text-6xl italic tracking-widest drop-shadow-[0_5px_0_rgba(0,0,0,0.8)] sm:text-8xl" style={{ color, textShadow: `0 0 30px ${color}66` }}>{children}</div>
+        <div className="font-display text-6xl italic tracking-widest drop-shadow-[0_5px_0_rgba(0,0,0,0.8)] sm:text-8xl short:text-5xl" style={{ color, textShadow: `0 0 30px ${color}66` }}>{children}</div>
         {sub && <div className="mt-1 text-sm tracking-[0.5em] text-white/70">{sub}</div>}
       </div>
     </div>
@@ -183,10 +183,10 @@ export function Hud() {
   return (
     <div className="pointer-events-none absolute inset-0 select-none font-body text-white">
       {h.roster.length > 2 && <RosterBars roster={h.roster} />}
-      <div className={`mx-auto flex max-w-6xl items-start gap-3 px-4 pt-4 sm:px-6 ${h.roster.length > 2 ? 'hidden' : ''}`}>
+      <div className={`mx-auto flex max-w-6xl items-start gap-3 px-4 pt-4 sm:px-6 short:pt-2 ${h.roster.length > 2 ? 'hidden' : ''}`}>
         <Corner id={ids[0]!} name={h.names[0]} value={h.health[0]} max={h.maxHealth[0]} wins={h.wins[0]} side="left" />
         <div className="flex w-24 shrink-0 flex-col items-center pt-1 sm:w-28">
-          <div className={`font-display text-5xl tabular-nums italic drop-shadow-[0_3px_0_rgba(0,0,0,0.8)] ${h.clock <= 10 && h.phase === 'fight' ? 'animate-pulse text-iron-red' : 'text-iron-amber'}`}>{h.clock}</div>
+          <div className={`font-display text-5xl tabular-nums italic short:text-3xl drop-shadow-[0_3px_0_rgba(0,0,0,0.8)] ${h.clock <= 10 && h.phase === 'fight' ? 'animate-pulse text-iron-red' : 'text-iron-amber'}`}>{h.clock}</div>
           <div className="text-[10px] tracking-[0.35em] text-white/60">{t.hud.round} {h.round}</div>
         </div>
         <Corner id={ids[1]!} name={h.names[1]} value={h.health[1]} max={h.maxHealth[1]} wins={h.wins[1]} side="right" />
@@ -218,7 +218,7 @@ export function Hud() {
 
       <div className={`pointer-events-none absolute bottom-3 left-4 ${touch ? 'hidden' : 'flex'} max-w-[min(46rem,92vw)] flex-col items-start gap-2`}>
         {help && (
-          <div className="anim-up grid gap-x-6 gap-y-2 border-l-4 border-iron-cyan bg-black/75 p-3 text-xs leading-relaxed text-white/85 md:grid-cols-2">
+          <div className="anim-up grid gap-x-6 gap-y-2 border-l-4 border-iron-cyan bg-black/75 p-3 text-xs leading-relaxed text-white/85 md:grid-cols-2 short:max-h-[48dvh] short:overflow-y-auto short:p-2 short:text-[10px] short:leading-snug">
             {helpSections(bindings, ids[0]!).map((sec) => (
               <div key={sec.title} className="space-y-1">
                 <div className="font-display tracking-widest text-iron-cyan">{sec.title.toUpperCase()}</div>

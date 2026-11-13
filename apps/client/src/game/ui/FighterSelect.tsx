@@ -108,27 +108,27 @@ export function FighterSelect(p: FighterSelectProps) {
       </div>
 
       <div className="relative flex h-full flex-col">
-        <header className="flex items-center justify-between px-6 pt-5">
+        <header className="flex items-center justify-between px-6 pt-5 short:pt-2">
           <Title sub={p.sub}>{p.title}</Title>
           <SlantButton small onClick={p.onBack}>RETOUR</SlantButton>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 px-6 py-2 lg:grid-cols-[minmax(280px,360px)_1fr_minmax(220px,280px)]">
-          <section key={p.value} className="anim-up flex flex-col justify-center gap-3 lg:py-4">
-            <div className="font-display text-5xl italic tracking-wider text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.7)] sm:text-6xl">{c.name}</div>
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 px-6 py-2 lg:grid-cols-[minmax(280px,360px)_1fr_minmax(220px,280px)] short:grid-cols-[minmax(200px,250px)_1fr] short:py-0">
+          <section key={p.value} className="anim-up flex flex-col justify-center gap-3 lg:py-4 short:gap-1 short:py-0">
+            <div className="font-display text-5xl italic tracking-wider text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.7)] sm:text-6xl short:text-3xl">{c.name}</div>
             <div className="-mt-1 text-sm tracking-[0.25em]" style={{ color: accent }}>{c.epithet.toUpperCase()}</div>
             {p.info?.(p.value)}
-            <p className="max-w-sm text-sm leading-relaxed text-white/70">{c.bio}</p>
-            <div className="max-w-sm space-y-2 pt-1">
+            <p className="max-w-sm text-sm leading-relaxed text-white/70 short:hidden">{c.bio}</p>
+            <div className="max-w-sm space-y-2 pt-1 short:space-y-0.5">
               <StatBar label="PUISSANCE" value={stats.power} accent={accent} />
               <StatBar label="VITESSE" value={stats.speed} accent={accent} />
               <StatBar label="ALLONGE" value={stats.reach} accent={accent} />
               <StatBar label="ENDURANCE" value={stats.vitality} accent={accent} />
             </div>
-            <div className="max-w-sm text-[11px] leading-relaxed tracking-wide text-white/45">{c.style}</div>
+            <div className="max-w-sm text-[11px] leading-relaxed tracking-wide text-white/45 short:hidden">{c.style}</div>
           </section>
 
-          <section className="relative min-h-56">
+          <section className="relative min-h-56 short:min-h-0">
             <Suspense fallback={<div className="grid h-full place-items-center text-xs tracking-[0.3em] text-white/40">CHARGEMENT…</div>}>
               <CharacterStage id={p.value} request={request} />
             </Suspense>
@@ -155,8 +155,8 @@ export function FighterSelect(p: FighterSelectProps) {
           </section>
         </div>
 
-        <footer className="flex flex-col items-center gap-3 px-6 pb-5">
-          <div className="grid grid-cols-6 gap-2">
+        <footer className="flex flex-col items-center gap-3 px-6 pb-5 short:flex-row short:flex-wrap short:justify-center short:gap-2 short:pb-2">
+          <div className="grid grid-cols-6 gap-2 short:basis-full short:grid-cols-12 short:justify-center short:gap-1.5">
             {CHARACTER_IDS.map((id) => {
               const locked = !p.unlocked.includes(id);
               const active = id === p.value;
@@ -169,7 +169,7 @@ export function FighterSelect(p: FighterSelectProps) {
                   onClick={() => p.onChange(id)}
                   aria-label={locked ? 'Personnage verrouillé' : getCharacter(id).name}
                   aria-pressed={active}
-                  className={`relative h-16 w-16 -skew-x-6 overflow-hidden border-2 transition-all sm:h-20 sm:w-20 ${locked ? 'cursor-not-allowed border-white/10 bg-black/60' : active ? 'z-10 scale-110' : 'border-white/25 bg-black/50 hover:scale-105 hover:border-white/70'}`}
+                  className={`relative h-16 w-16 -skew-x-6 overflow-hidden border-2 transition-all sm:h-20 sm:w-20 short:h-11 short:w-11 ${locked ? 'cursor-not-allowed border-white/10 bg-black/60' : active ? 'z-10 scale-110' : 'border-white/25 bg-black/50 hover:scale-105 hover:border-white/70'}`}
                   style={active ? { borderColor: a, boxShadow: `0 0 22px ${a}`, background: `linear-gradient(160deg, ${a}55, #000)` } : undefined}
                 >
                   <Portrait id={id} className="h-full w-full" dim={locked} />

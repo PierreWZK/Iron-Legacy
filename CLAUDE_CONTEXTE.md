@@ -1019,3 +1019,9 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - **L'IA fait des combos** (`engine/ai.ts`) : pendant un coup, elle suit un lien `chain` du coup en cours (tout chemin de l'arbre est un vrai combo). Niveaux 1-2 : rien de nouveau ; 3-4 : triple appui seulement ; 5 et plus : tous les combos, directions comprises. Nouveau niveau 8 « impossible » (`AI_MAX_LEVEL`). Tests : `aiCombo.test.ts`.
 - **Réglage « Niveau des adversaires »** (Réglages, menu principal et pause) : facile (-2), moyen (0), difficile (+2), impossible (niveau 8 partout). Appliqué dans `runtime.start` à tous les combats contre l'ordinateur (arcade, histoire, robots, combat rapide), en plus du niveau prévu par le mode. Sauvegardé dans le navigateur (`iron-legacy.ai`). `game/difficulty.ts`.
 - Limites : l'IA ne fait pas de double appui (pas de roulade ni de projection lancée) ; le réglage changé pendant un combat vaut au combat suivant ; les bots en ligne du serveur ne lisent pas ce réglage.
+
+### Session 18 suite : téléphone à l'horizontale
+
+- Variante Tailwind `short:` (`index.css`) = écran de moins de 520 px de haut (téléphone à l'horizontale). Utilisée pour compacter : boutons (`SlantButton`), titres (`Title`), menu pause (2 colonnes, défilable : QUITTER LE COMBAT visible), sélection de personnage (fiche réduite à gauche, aperçu 3D à droite, 12 vignettes sur une ligne), dialogue de l'histoire, panneau d'aide (défilable), HUD (portraits, horloge), bannières, commandes tactiles.
+- La liste des combos affiche les boutons tactiles (POING G…) quand les commandes tactiles sont actives.
+- Vérifié en 812x375 : menu, sélection, choix du mannequin, combat tactile, pause, liste des combos, histoire (sélection, narration, dialogue), arcade et robots (défilent), écran de fin. Pas vérifié : en ligne, compte, VS, écrans de fin d'histoire. Pas testé sur un vrai téléphone.

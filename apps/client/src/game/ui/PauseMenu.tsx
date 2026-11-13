@@ -127,7 +127,7 @@ export function PauseMenu() {
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/70 backdrop-blur-sm" role="dialog" aria-label="Pause">
-      <div className="anim-pop border-l-8 border-iron-amber bg-black/85 px-8 py-6 shadow-[0_0_60px_-10px_#ffb020]">
+      <div className="anim-pop max-h-[94dvh] overflow-y-auto border-l-8 border-iron-amber bg-black/85 px-8 py-6 shadow-[0_0_60px_-10px_#ffb020] short:px-4 short:py-3">
         {view === 'keys' ? (
           <KeysView />
         ) : view === 'combos' ? (
@@ -142,9 +142,9 @@ export function PauseMenu() {
             <SlantButton small onClick={() => usePause.setState({ view: 'menu' })}>RETOUR</SlantButton>
           </div>
         ) : (
-          <div className="flex min-w-72 flex-col gap-3">
-            <h2 className="font-display text-4xl italic tracking-widest text-iron-amber">{online ? 'MENU' : 'PAUSE'}</h2>
-            {online && <p className="max-w-64 text-xs text-white/55">En ligne : le combat continue pendant que ce menu est ouvert.</p>}
+          <div className="flex min-w-72 flex-col gap-3 short:grid short:grid-cols-2 short:gap-2">
+            <h2 className="font-display text-4xl italic tracking-widest text-iron-amber short:col-span-2 short:text-2xl">{online ? 'MENU' : 'PAUSE'}</h2>
+            {online && <p className="max-w-64 text-xs text-white/55 short:col-span-2 short:max-w-none">En ligne : le combat continue pendant que ce menu est ouvert.</p>}
             <SlantButton primary onClick={closePause}>REPRENDRE</SlantButton>
             <SlantButton onClick={() => usePause.setState({ view: 'combos' })}>COMBOS</SlantButton>
             <SlantButton onClick={() => usePause.setState({ view: 'keys' })}>COMMANDES CLAVIER</SlantButton>

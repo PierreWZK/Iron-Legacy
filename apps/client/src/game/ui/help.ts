@@ -65,6 +65,7 @@ export function helpSections(b: Bindings, characterId: string): HelpSection[] {
         combo('rk'),
         `Les boutons se mélangent : ${k('lp')} ${k('rp')} ${k('rk')} = ${moves.jab.label} › ${moves.rp2.label} › ${moves.rk3.label}`,
         'Appuie sans attendre : un appui en avance est gardé en mémoire et part au bon moment.',
+        `Les 20 combos (directions, double appui) : ${'É'}chap puis COMBOS.`,
       ],
     },
   ];
