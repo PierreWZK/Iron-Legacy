@@ -1047,3 +1047,10 @@ Pas testé sur un vrai téléphone (multi-touch, performances, rythme des combos
 - **Animations** : armé plus marqué (le membre et le buste partent en arrière), départ qui accélère, léger dépassement à l'impact, retour plus lent ; lissage des poses moins sec pendant coups et pas lancés ; pose interpolée entre deux ticks. Pas lancé : vitesse décroissante (élan puis freinage, même distance) et vraie pose d'élan (corps bas, grande foulée, bras en arrière) ; recul : petit saut.
 - Tests : `engine/spam.test.ts` (projection décalée, trop tard, répétitions, dégâts réduits), `moves.test.ts` et `comboList.test.ts` adaptés (appuis de combo espacés de 5 ticks), `server/modes.test.ts` (phase de sélection). Moteur 187, serveur 14.
 - Vérifié à l'écran : salon → LANCER LA PARTIE → sélection (tuile Aléatoire, statut des joueurs) → PRÊT → combat. Pas vérifié : le ressenti des nouvelles animations et de l'anti-répétition en jeu, la projection décalée à la main.
+
+### Session 18 suite : vérification de la production, victoire de l'invité
+
+- Prod vérifiée le 2026-11-13 (après fusion de la PR 7) : partie complète par script contre wss://iron-api.projectp.fr (création, jonction, sélection, 12 s de combat) : 0 divergence, ping 18 ms, ticks réguliers (p50 17 ms, pointes à 215 ms). Logs Coolify : aucune erreur serveur.
+- **Problème trouvé** : après un redéploiement, nginx renvoie 404 sur les anciens fichiers (`assets/index-….js`, `visuals-….js`). Un onglet ouvert avant la mise à jour ne pouvait plus charger la scène de combat. Corrigé : `index.html` en `no-cache` (`apps/client/nginx.conf`), `assets/` en vrai 404, et le client recharge la page une fois sur `vite:preloadError` (`main.tsx`).
+- `GET /` sur l'API restait sans réponse : `/` et `/health` répondent `ok` (`server/api.ts`).
+- **Bug corrigé** : en ligne, l'écran de fin affichait DÉFAITE à tout joueur qui n'était pas l'hôte, même vainqueur (le HUD comparait au combattant 0). Il compare maintenant à la place du joueur local ; en 2v2, à son équipe (`ui/Hud.tsx`).

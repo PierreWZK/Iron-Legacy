@@ -33,6 +33,11 @@ const CORS = {
 /** Routes HTTP du compte : inscription, connexion, sauvegarde, classement. Toute autre URL est ignorée. */
 export function handleApi(req: IncomingMessage, res: ServerResponse): boolean {
   const url = new URL(req.url ?? '/', 'http://localhost');
+  // Vérification de santé (Coolify, supervision) : avant, « / » restait sans réponse.
+  if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', ...CORS }).end('ok');
+    return true;
+  }
   if (!url.pathname.startsWith('/api/')) return false;
   const store = accountStore();
   if (req.method === 'OPTIONS') {
