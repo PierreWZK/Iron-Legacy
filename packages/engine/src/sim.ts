@@ -2,7 +2,7 @@ import {
   ARENA_RADIUS, DODGE_MOVE_TICKS, DODGE_TICKS, DT, FIGHTER_RADIUS, GETUP_TICKS, GRAVITY,
   KNOCKDOWN_TICKS, KNOCK_DECAY, MIN_DIST, PARRY_TICKS, PUSH_MAX_HEIGHT, THROW_GRAB_DISTANCE,
 } from './constants';
-import { getCharacter, getMove, type Speeds } from './characters';
+import { getCharacter, getMove, type ChainButton, type Speeds } from './characters';
 import { attackIntent, THROW_PAIRS, type Stance } from './combat/intent';
 import { isAirborne } from './combat/hit';
 import { resolveCombat } from './combat/resolve';
@@ -13,6 +13,15 @@ import type { MoveId } from './characters';
 
 const ATTACK_BUTTONS = Btn.LP | Btn.RP | Btn.LK | Btn.RK;
 const DODGE_TRIGGERS = Btn.Shift | Btn.Back | Btn.SideL | Btn.SideR;
+/** Un appui d'attaque est mémorisé ce nombre de ticks (il part dès que le coup en cours le permet). */
+const BUFFER_TICKS = 9;
+const DIRECTIONS = Btn.Fwd | Btn.Back | Btn.Crouch;
+const CHAIN_ORDER: readonly [number, ChainButton][] = [[Btn.LP, 'lp'], [Btn.RP, 'rp'], [Btn.LK, 'lk'], [Btn.RK, 'rk']];
+/** Montée de l'élan de marche par tick, et chute quand on s'arrête. */
+const PACE_UP = 0.2;
+const PACE_DOWN = 0.35;
+/** Part de la vitesse disponible dès le premier tick. */
+const PACE_MIN = 0.4;
 /** Fenêtre (ticks) entre LP et RP pour déclencher une projection. */
 const THROW_WINDOW = 4;
 
@@ -24,6 +33,8 @@ const THROW_WINDOW = 4;
 export function stepWorld(w: World, inputs: readonly InputFrame[]): void {
   w.events.length = 0;
   if (w.hitstop > 0) {
+    // Les appuis pendant l'arrêt sur image ne sont pas perdus : ils sont mémorisés pour la suite.
+    for (const f of w.fighters) trackInput(w, f, inputs[f.id] ?? 0, false);
     w.hitstop--;
     w.tick++;
     return;
@@ -40,7 +51,8 @@ export function stepWorld(w: World, inputs: readonly InputFrame[]): void {
   w.tick++;
 }
 
-function stepFighter(w: World, f: Fighter, input: InputFrame, snap: Vec3[]): void {
+/** Enregistre les appuis du tick (fronts montants) et met à jour la mémoire d'appuis. Retourne les boutons pressés. */
+function trackInput(w: World, f: Fighter, input: InputFrame, age: boolean): InputFrame {
   const pressed = input & ~f.prevInput;
   f.prevInput = input;
   f.input = input;
@@ -48,8 +60,21 @@ function stepFighter(w: World, f: Fighter, input: InputFrame, snap: Vec3[]): voi
   if (pressed & Btn.RP) f.lastPress.rp = w.tick;
   if (pressed & Btn.LK) f.lastPress.lk = w.tick;
   if (pressed & Btn.RK) f.lastPress.rk = w.tick;
+  const atk = pressed & ATTACK_BUTTONS;
+  if (atk) {
+    f.buffer = atk;
+    f.bufferAge = 0;
+  } else if (age && f.action !== 'attack' && f.buffer && ++f.bufferAge > BUFFER_TICKS) {
+    f.buffer = 0;
+  }
+  return pressed;
+}
+
+function stepFighter(w: World, f: Fighter, input: InputFrame, snap: Vec3[]): void {
+  const pressed = trackInput(w, f, input, true);
   if (f.comboTimer > 0) f.comboTimer--;
   else f.combo = 0;
+  if (f.stun > 0) f.buffer = 0;
   if (w.match.phase === 'fight') control(w, f, input, pressed, snap);
   integrate(f);
   f.actionTicks++;
@@ -64,10 +89,12 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
   }
   const speeds = getCharacter(f.characterId).speeds;
   const target = nearestOpponent(f, snap, w.fighters);
+  // Appuis récents inclus : un bouton pressé un peu trop tôt part dès que possible.
+  const eff = pressed | f.buffer;
 
   switch (f.action) {
     case 'attack':
-      advanceAttack(f, input, pressed);
+      advanceAttack(f, input, eff, target);
       return;
     case 'dodge':
       advanceDodge(f, target, speeds.dodge);
@@ -116,9 +143,9 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
       return;
     }
   }
-  if (pressed & ATTACK_BUTTONS) {
+  if (eff & ATTACK_BUTTONS) {
     const running = f.action === 'runFwd' && shift && fwd;
-    const id = attackIntent(input, pressed, crouch ? 'crouch' : 'stand', running);
+    const id = attackIntent(input, eff, crouch ? 'crouch' : 'stand', running);
     if (id) {
       startMove(f, id);
       return;
@@ -129,24 +156,28 @@ function control(w: World, f: Fighter, input: InputFrame, pressed: InputFrame, s
     return;
   }
   if (crouch) {
+    f.pace = Math.max(0, f.pace - PACE_DOWN);
     f.action = back ? 'crouchBlock' : 'crouch';
     return;
   }
   if (!fwd && !back && side === 0) {
+    f.pace = Math.max(0, f.pace - PACE_DOWN);
     f.action = 'idle';
     return;
   }
+  f.pace = Math.min(1, f.pace + PACE_UP);
+  const ease = PACE_MIN + (1 - PACE_MIN) * f.pace;
 
   // Déplacement au sol. Arrière seul = recul en gardant la garde (le blocage lit l'entrée).
   const fwdSign = fwd ? 1 : back ? -1 : 0;
   const fwdSpeed = fwd ? (shift ? speeds.runFwd : speeds.walkFwd) : speeds.walkBack;
-  if (target) moveGrounded(f, target, fwdSign, side, fwdSpeed, speeds.side);
+  if (target) moveGrounded(f, target, fwdSign, side, fwdSpeed * ease, speeds.side * ease);
   if (fwd) f.action = shift ? 'runFwd' : 'walkFwd';
   else if (side !== 0) f.action = side > 0 ? 'sideR' : 'sideL';
   else f.action = 'walkBack';
 }
 
-function advanceAttack(f: Fighter, input: InputFrame, pressed: InputFrame): void {
+function advanceAttack(f: Fighter, input: InputFrame, eff: InputFrame, target: Vec3 | null): void {
   if (!f.move) {
     endAction(f);
     return;
@@ -162,11 +193,24 @@ function advanceAttack(f: Fighter, input: InputFrame, pressed: InputFrame): void
     endAction(f);
     return;
   }
+  // Combo : bouton sans direction à partir de `chainFrame`, touché ou non (un appui en avance est mémorisé).
+  if (m.chain && f.moveFrame >= (m.chainFrame ?? m.startup + m.active + 2) && !has(input, DIRECTIONS)) {
+    for (const [bit, key] of CHAIN_ORDER) {
+      const next = m.chain[key];
+      if ((eff & bit) && next) {
+        if (target) face(f, target);
+        startMove(f, next);
+        return;
+      }
+    }
+  }
   // Enchaînement : annulation sur coup touché/bloqué, ou « string » pendant la récupération (même à vide).
   const recovering = f.moveFrame > m.startup + m.active;
-  const canChain = (m.cancel && f.moveHit) || (m.string === true && recovering);
-  if (canChain && (pressed & ATTACK_BUTTONS)) {
-    const next = attackIntent(input, pressed, stanceOf(input, f), false);
+  // Un coup à combo, bouton nu : on attend la fenêtre de combo plutôt que de relancer le même coup.
+  const waitsForCombo = m.chain !== undefined && !has(input, DIRECTIONS) && CHAIN_ORDER.some(([bit, key]) => (eff & bit) && m.chain?.[key]);
+  const canChain = !waitsForCombo && ((m.cancel && f.moveHit) || (m.string === true && recovering));
+  if (canChain && (eff & ATTACK_BUTTONS)) {
+    const next = attackIntent(input, eff, stanceOf(input, f), false);
     if (next && !getMove(f.characterId, next).throw) startMove(f, next);
   }
 }
@@ -208,6 +252,8 @@ function startAction(f: Fighter, action: Fighter['action'], sub: DodgeSub = null
 }
 
 function startMove(f: Fighter, id: NonNullable<Fighter['move']>): void {
+  f.buffer = 0;
+  f.pace = 0;
   f.action = 'attack';
   f.move = id;
   f.moveFrame = 1;

@@ -905,3 +905,52 @@ Refaire l'esthétique du site en entier : fun, comme un vrai jeu vidéo. Vrai me
 ### Modifications à me renvoyer
 
 Quels personnages retravailler en priorité, ce qui manque au menu et à l'histoire, et si tu veux que je déploie sur Coolify.
+
+---
+
+## 23. Session 16 : combat plus fluide (combos, mouvements, pause, touches, aide)
+
+### Demande (simplifiée)
+
+Retravailler le combat pour qu'il soit plus fluide. Combos par personnage (ex. trois appuis sur un même bouton = trois coups rapides), mêmes entrées possibles d'un personnage à l'autre mais animations différentes. Menu Échap (au lieu de quitter) avec réglage des touches. Bouton « Aide » qui affiche et masque le texte des mouvements. Revoir animations et déplacements.
+
+### Ce qui est fait
+
+- **Combos** (moteur) : 8 nouveaux coups `lp2 lp3 rp2 rp3 lk2 lk3 rk2 rk3`. Un coup d'ouverture (jab, direct, pied frontal, circulaire) mène au 2e coup du bouton pressé, puis au 3e. Les boutons se mélangent (ex. LP RP RK = jab, `rp2`, `rk3`). Pas de direction tenue : avec une direction, les coups directionnels d'avant restent disponibles. Le combo continue même si un coup rate. Données dans `characters/combos.ts` : 9 styles (karaté, boxe, bête, lourd, ninja, judo, ombre, mécanique, pieds) donnent à chaque personnage ses animations, noms et rythme ; vitesse et puissance dérivent de ses propres jab et direct.
+- **Mémoire d'appuis** : un bouton pressé un peu trop tôt est gardé (9 ticks hors coup, jusqu'à la fenêtre de combo pendant un coup) et part au bon moment. Les appuis faits pendant l'arrêt sur image d'un impact ne sont plus perdus.
+- **Élan de marche** : la vitesse monte en quelques ticks au lieu de démarrer à plein régime, et retombe vite à l'arrêt.
+- **Animations** (`render/pose.ts`) : coups avec anticipation (le membre part en arrière puis accélère), tenue à l'impact, retour lissé ; torsion du corps et transfert de poids sur les coups ; marche et course avec contre-rotation du buste, rebond et foulée par personnage ; garde au repos différente par personnage (rebond du boxeur, posture basse des bêtes, raideur des robots) ; saut qui change selon la montée et la descente ; recul de réaction qui s'estompe. Le lissage des os est beaucoup plus rapide pendant les coups, les réactions et les esquives.
+- **Menu pause** (Échap) : reprendre, commandes, aide, recommencer, quitter. Le jeu hors ligne s'arrête vraiment. En ligne, le menu s'ouvre mais le combat continue.
+- **Réglage des touches** : deux touches par action, clic puis nouvelle touche, retour arrière pour effacer, clic droit pour retirer, « par défaut ». Sauvegardé dans le navigateur. Touches réservées : Échap, Entrée, H, T, I, F3.
+- **Aide** : bouton AIDE (et touche H) qui affiche ou masque le texte ; il suit les touches réglées et liste les combos réels du personnage joué. Préférence mémorisée.
+
+### Ce qui a été testé
+
+| Test | Résultat |
+|---|---|
+| Moteur : 136 tests, dont `combos.test.ts` (trois appuis par bouton, mélange, appui en avance, combo à vide, direction tenue, un combo complet par personnage et par bouton, animations différentes entre styles, déterminisme, élan de marche) | **Tout passe** |
+| Serveur : 11 tests (duel en ligne avec le nouveau moteur) | **Tout passe** |
+| Typecheck des trois paquets | OK |
+| Navigateur : combo de 3 coups à l'écran, pause, écran des commandes, changement de touche puis retour aux touches par défaut, aide | OK |
+
+### Non testé ou limites (honnêteté)
+
+- **Le ressenti** : le navigateur de test est logiciel (environ 6 images par seconde). Fluidité, rythme des combos et animations restent à juger sur ta machine.
+- Deux appuis très rapprochés pendant l'arrêt sur image : un seul est gardé (la mémoire contient le dernier appui).
+- Les combos sont jouables par le joueur ; l'IA ne les utilise pas encore volontairement (elle garde ses enchaînements d'avant).
+- Combos non jouables avec une direction tenue (par choix, pour garder les coups directionnels).
+- Le réglage des touches ne passe pas par la sauvegarde de compte (navigateur seulement). Pas de manette.
+- Équilibrage des dégâts des combos non éprouvé en partie longue.
+- En ligne : combos intégrés au moteur partagé (tests de duel passent), non rejoués à deux machines.
+- Les animations de projection n'ont pas été modifiées.
+
+### Tests à faire par toi
+
+1. Entraînement : essaie trois fois chaque bouton (A, E, R, F) avec plusieurs personnages. Les enchaînements sont-ils assez rapides ?
+2. Marche, course, esquive, saut : plus agréable qu'avant ?
+3. Échap : pause, commandes, change une touche, reprends.
+4. Bouton AIDE : affiche et masque le texte.
+
+### Modifications à me renvoyer
+
+Ce qui reste raide ou lent, quels personnages manquent de punch, et si l'IA doit faire des combos.

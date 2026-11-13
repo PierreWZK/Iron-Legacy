@@ -65,7 +65,7 @@ export class RigPlayer {
       }
     }
     const pose = poseFor(this.f, this.t, this.world);
-    const k = snap ? 1 : 1 - Math.exp(-delta * 22);
+    const k = snap ? 1 : 1 - Math.exp(-delta * (this.move ? 75 : 26));
     this.hipsY += (pose.hipsY - this.hipsY) * k;
     this.bodyYaw += (pose.bodyYaw - this.bodyYaw) * k;
     const { rig } = this;

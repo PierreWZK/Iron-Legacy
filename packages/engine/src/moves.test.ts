@@ -44,7 +44,7 @@ describe('coups par direction + bouton', () => {
       [Btn.Crouch | Btn.Fwd, 'crouch', false], [Btn.Fwd | Btn.Shift, 'stand', true], [0, 'air', false],
     ];
     for (const [dir, stance, run] of contexts) for (const m of ids(dir, stance, run)) if (m) reachable.add(m);
-    const expected = MOVE_IDS.filter((m) => !THROW_IDS.includes(m));
+    const expected = MOVE_IDS.filter((m) => !THROW_IDS.includes(m) && !/^(lp|rp|lk|rk)[23]$/.test(m)); // les combos passent par la chaîne (combos.test.ts)
     expect([...reachable].sort()).toEqual([...expected].sort());
   });
 
@@ -76,7 +76,7 @@ describe('enchaînements (strings)', () => {
     feed(w, 1, Btn.LP);
     feed(w, 7, 0); // frame 8 : récupération (le jab a 4+2 frames avant la récupération)
     feed(w, 1, Btn.RP);
-    expect(w.fighters[0]!.move).toBe('cross');
+    expect(w.fighters[0]!.move).toBe('rp2');
   });
 
   it('pas d\'enchaînement pendant les frames de démarrage (le coup en cours continue)', () => {

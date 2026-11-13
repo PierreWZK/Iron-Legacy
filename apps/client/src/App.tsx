@@ -1,9 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { runtime } from './game/runtime';
-import { arcadeQuit, useArcade } from './game/arcade/session';
-import { storyQuit, useStory } from './game/story/session';
 import { StoryScreen } from './game/ui/StoryScreens';
-import { robotsQuit, useRobots } from './game/robots/session';
 import { onlineLeave } from './game/online/session';
 import { OnlineScreen } from './game/ui/OnlineScreens';
 import { AccountScreen } from './game/ui/AccountScreens';
@@ -15,6 +11,8 @@ import { Screen } from './game/ui/kit';
 import { SelectScreen } from './game/ui/SelectScreens';
 import { VsScreen } from './game/ui/VsScreen';
 import { selectBack } from './game/select';
+import { escapePressed } from './game/ui/PauseMenu';
+import { quitFight } from './game/quit';
 import { backToMenu, useApp } from './game/store';
 
 /** Scène 3D chargée à la demande : three.js n'est pas téléchargé pour le menu. */
@@ -28,12 +26,10 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       const current = useApp.getState().screen;
-      if (current === 'fight' || current === 'vs') {
-        if (useArcade.getState().active) arcadeQuit();
-        else if (useStory.getState().active) storyQuit();
-        else if (useRobots.getState().active) robotsQuit();
-        else if (runtime.online) onlineLeave();
-        else backToMenu();
+      if (current === 'fight') {
+        escapePressed();
+      } else if (current === 'vs') {
+        quitFight();
       } else if (current === 'select') {
         selectBack();
       } else if (current === 'account') {

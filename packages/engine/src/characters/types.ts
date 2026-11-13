@@ -20,7 +20,13 @@ export const MOVE_IDS = [
   'airPunch', 'airElbow', 'jumpKick', 'airRound',
   // Projections : LP+RP, LP+LK, RP+RK, LK+RK
   'throw', 'hipToss', 'suplex', 'legThrow',
+  // Combos : 2e et 3e coup d'un enchaînement par bouton (ex. RK RK RK = roundhouse, rk2, rk3)
+  'lp2', 'lp3', 'rp2', 'rp3', 'lk2', 'lk3', 'rk2', 'rk3',
 ] as const;
+
+/** Bouton d'attaque tel qu'utilisé dans les enchaînements. */
+export type ChainButton = 'lp' | 'rp' | 'lk' | 'rk';
+export const CHAIN_BUTTONS: readonly ChainButton[] = ['lp', 'rp', 'lk', 'rk'];
 
 export type MoveId = (typeof MOVE_IDS)[number];
 
@@ -63,6 +69,13 @@ export interface MoveDef {
   cancel: boolean;
   /** Enchaînement « string » : le coup suivant peut être lancé pendant la récupération, même si le coup a manqué ou été bloqué. */
   string?: boolean;
+  /**
+   * Combo : bouton pressé (sans direction) à partir de `chainFrame` → coup suivant. Marche même si le
+   * coup a manqué ; un appui un peu en avance est mémorisé (buffer).
+   */
+  chain?: Partial<Record<ChainButton, MoveId>>;
+  /** Frame à partir de laquelle l'enchaînement est possible (défaut : startup + active + 2). */
+  chainFrame?: number;
   /** Projection : saisit l'adversaire puis joue une séquence. */
   throw?: boolean;
   /** Durée (ticks) de la séquence de projection après la prise. */

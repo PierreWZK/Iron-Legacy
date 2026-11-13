@@ -1,4 +1,8 @@
-import type { Height, Limb, MoveDef, MoveId } from './types';
+import type { ChainButton, Height, Limb, MoveDef, MoveId } from './types';
+
+/** Combos : le bouton pressé choisit le 2e (puis le 3e) coup de l'enchaînement. */
+export const STEP2: Partial<Record<ChainButton, MoveId>> = { lp: 'lp2', rp: 'rp2', lk: 'lk2', rk: 'rk2' };
+export const STEP3: Partial<Record<ChainButton, MoveId>> = { lp: 'lp3', rp: 'rp3', lk: 'lk3', rk: 'rk3' };
 
 /** Construit un coup : les champs rares (lancer, knockdown, avancée, string…) passent par `extra`. */
 export function mv(
@@ -16,10 +20,10 @@ export function mv(
 /** Table de coups de référence (style karaté). Les autres personnages la surchargent partiellement. */
 export const BASE_MOVES: Record<MoveId, MoveDef> = {
   // Debout
-  jab: mv('Jab', 'punchL', 'high', 4, 2, 8, 4, 13, 9, 0.4, 1.0, { cancel: true, string: true }),
-  cross: mv('Direct', 'punchR', 'mid', 7, 3, 13, 8, 16, 11, 0.8, 1.1, { cancel: true, string: true }),
-  frontKick: mv('Coup de pied frontal', 'kickL', 'mid', 9, 4, 15, 9, 17, 12, 1.0, 1.25, { radius: 0.32, cancel: true, string: true }),
-  roundhouse: mv('Coup de pied circulaire', 'kickR', 'high', 14, 4, 24, 14, 24, 16, 1.4, 1.35, { radius: 0.4 }),
+  jab: mv('Jab', 'punchL', 'high', 4, 2, 8, 4, 13, 9, 0.4, 1.0, { cancel: true, string: true, chain: STEP2 }),
+  cross: mv('Direct', 'punchR', 'mid', 7, 3, 13, 8, 16, 11, 0.8, 1.1, { cancel: true, string: true, chain: STEP2 }),
+  frontKick: mv('Coup de pied frontal', 'kickL', 'mid', 9, 4, 15, 9, 17, 12, 1.0, 1.25, { radius: 0.32, cancel: true, string: true, chain: STEP2 }),
+  roundhouse: mv('Coup de pied circulaire', 'kickR', 'high', 13, 4, 22, 14, 24, 16, 1.4, 1.35, { radius: 0.4, chain: STEP2 }),
   // Avant + bouton
   lunge: mv('Fente', 'lunge', 'mid', 12, 5, 18, 10, 20, 10, 1.2, 1.3, { lunge: 3.5 }),
   elbow: mv('Coude', 'elbow', 'high', 10, 3, 20, 13, 24, 14, 1.5, 0.9, { knockdown: true }),
@@ -52,4 +56,13 @@ export const BASE_MOVES: Record<MoveId, MoveDef> = {
   hipToss: mv('Projection de hanche', 'hipToss', 'mid', 5, 1, 60, 16, 0, 0, 0, 0.9, { radius: 0.4, knockdown: true, throw: true, sequence: 48, landing: 1.2 }),
   suplex: mv('Suplex', 'suplex', 'mid', 6, 1, 66, 20, 0, 0, 0, 0.9, { radius: 0.4, knockdown: true, throw: true, sequence: 54, landing: -1.2 }),
   legThrow: mv('Projection de jambe', 'legThrow', 'mid', 6, 1, 56, 13, 0, 0, 0, 0.9, { radius: 0.4, knockdown: true, throw: true, sequence: 44, landing: 1.0 }),
+  // Combos (2e et 3e coup) : réglés par style de personnage dans `combos.ts`
+  lp2: mv('Direct enchaîné', 'punchR', 'mid', 5, 2, 11, 4, 17, 11, 0.5, 1.05, { chain: STEP3, lunge: 1.2 }),
+  lp3: mv('Crochet final', 'hook', 'mid', 6, 3, 16, 6, 22, 14, 1.0, 1.1, { lunge: 1.5 }),
+  rp2: mv('Revers enchaîné', 'punchL', 'high', 5, 2, 12, 6, 18, 12, 0.6, 1.0, { chain: STEP3, lunge: 1.2 }),
+  rp3: mv('Uppercut final', 'uppercut', 'high', 7, 3, 22, 11, 24, 15, 0.8, 1.0, { knockdown: true }),
+  lk2: mv('Second coup de pied', 'kickR', 'mid', 6, 3, 12, 6, 18, 12, 0.7, 1.2, { chain: STEP3, radius: 0.32 }),
+  lk3: mv('Latéral final', 'sideKick', 'mid', 7, 3, 18, 8, 22, 14, 1.2, 1.4),
+  rk2: mv('Circulaire enchaîné', 'kickL', 'high', 6, 3, 13, 8, 19, 13, 0.8, 1.3, { chain: STEP3, radius: 0.36 }),
+  rk3: mv('Tournant final', 'spinKick', 'high', 8, 4, 24, 14, 26, 16, 1.3, 1.4, { knockdown: true, radius: 0.4 }),
 };

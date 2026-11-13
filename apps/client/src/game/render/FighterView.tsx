@@ -20,6 +20,9 @@ export function FighterView({ index, characterId }: { index: number; characterId
     const prev = p.fighters[index]!;
     const a = runtime.alpha;
     const k = 1 - Math.exp(-delta * 22);
+    // Coups, réactions et esquives : le corps suit la pose presque sans retard, sinon les coups rapides s'estompent.
+    const fast = cur.action === 'attack' || cur.action === 'hitstun' || cur.action === 'parry' || cur.action === 'dodge';
+    const kb = 1 - Math.exp(-delta * (fast ? 75 : 26));
     s.t += delta;
 
     const pose = poseFor(cur, s.t, w);
@@ -38,8 +41,8 @@ export function FighterView({ index, characterId }: { index: number; characterId
     let dy = Math.atan2(cur.facing.x, cur.facing.z) - s.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     s.yaw += dy * k;
-    s.bodyYaw += (pose.bodyYaw - s.bodyYaw) * k;
-    s.hipsY += (pose.hipsY - s.hipsY) * k;
+    s.bodyYaw += (pose.bodyYaw - s.bodyYaw) * kb;
+    s.hipsY += (pose.hipsY - s.hipsY) * kb;
     rig.root.rotation.y = s.yaw + s.bodyYaw;
     rig.rotor.rotation.set(xf ? xf.rotX : -(Math.PI / 2) * s.lying, 0, xf ? xf.rotZ : 0);
     rig.bones.hips.position.y = rig.hipsBase + s.hipsY;
@@ -48,9 +51,9 @@ export function FighterView({ index, characterId }: { index: number; characterId
       if (name === 'tail') continue;
       const bone = rig.bones[name];
       const [x, y, z] = pose.rot[name] ?? [0, 0, 0];
-      bone.rotation.x += (x - bone.rotation.x) * k;
-      bone.rotation.y += (y - bone.rotation.y) * k;
-      bone.rotation.z += (z - bone.rotation.z) * k;
+      bone.rotation.x += (x - bone.rotation.x) * kb;
+      bone.rotation.y += (y - bone.rotation.y) * kb;
+      bone.rotation.z += (z - bone.rotation.z) * kb;
     }
 
     // Éléments qui ondulent : écharpes, bandeaux, queue de cheval, queues d'animaux.

@@ -1,5 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { fr, t } from '../../i18n/fr';
+import { useBindings } from '../input/bindings';
+import { helpSections, toggleHelp, useHelp } from './help';
+import { closePause, PauseMenu } from './PauseMenu';
 import { backToMenu, startFight, useApp, useHud } from '../store';
 import { useArcade } from '../arcade/session';
 import { useStory } from '../story/session';
@@ -151,16 +154,16 @@ export function Hud() {
   const arcade = useArcade();
   const story = useStory();
   const robots = useRobots();
-  const [help, setHelp] = useState(true);
+  const help = useHelp((s) => s.open);
+  const bindings = useBindings((s) => s.bindings);
   const [debug, setDebug] = useState(false);
   const comboCount = h.combo[0] >= h.combo[1] ? h.combo[0] : h.combo[1];
   const comboSide = h.combo[0] >= h.combo[1] ? 'left' : 'right';
   const ids = runtime.online ? runtime.heroes : [runtime.config.p1, runtime.config.p2];
 
   useEffect(() => {
-    const id = window.setTimeout(() => setHelp(false), 9000);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'h' || e.key === 'H') setHelp((v) => !v);
+      if (e.key === 'h' || e.key === 'H') toggleHelp();
       else if (e.key === 'F3') {
         e.preventDefault();
         setDebug((v) => !v);
@@ -168,8 +171,8 @@ export function Hud() {
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      window.clearTimeout(id);
       window.removeEventListener('keydown', onKey);
+      closePause();
     };
   }, []);
 
@@ -206,16 +209,24 @@ export function Hud() {
       {story.active && <Tag color="#34e0ff">HISTOIRE · CHAPITRE {story.chapter + 1} / 8 · {getCharacter(storyOpponents(story.hero)[story.chapter]!).name}</Tag>}
       {h.infinite && mode === 'training' && <Tag color="#34e0ff">{t.hud.infinite}</Tag>}
 
-      {help ? (
-        <div className="anim-up absolute bottom-4 left-4 w-[22rem] max-w-[60vw] space-y-1 border-l-4 border-iron-cyan bg-black/70 p-3 text-xs leading-relaxed text-white/85">
-          <div className="mb-1 font-display tracking-widest text-iron-cyan">{fr.controls.heading} <span className="text-white/40">· H pour masquer</span></div>
-          {fr.controls.lines.map((line) => (
-            <div key={line}>{line}</div>
-          ))}
+      <div className="pointer-events-none absolute bottom-3 left-4 flex max-w-[min(46rem,92vw)] flex-col items-start gap-2">
+        {help && (
+          <div className="anim-up grid gap-x-6 gap-y-2 border-l-4 border-iron-cyan bg-black/75 p-3 text-xs leading-relaxed text-white/85 md:grid-cols-2">
+            {helpSections(bindings, ids[0]!).map((sec) => (
+              <div key={sec.title} className="space-y-1">
+                <div className="font-display tracking-widest text-iron-cyan">{sec.title.toUpperCase()}</div>
+                {sec.lines.map((line) => <div key={line}>{line}</div>)}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="pointer-events-auto flex items-center gap-3">
+          <SlantButton small primary={help} onClick={toggleHelp}>AIDE</SlantButton>
+          <span className="text-[10px] tracking-[0.3em] text-white/35">H : AIDE · F3 : DÉBOGAGE · ÉCHAP : PAUSE</span>
         </div>
-      ) : (
-        <div className="absolute bottom-3 left-4 text-[10px] tracking-[0.3em] text-white/35">H : COMMANDES · F3 : DÉBOGAGE</div>
-      )}
+      </div>
+
+      <PauseMenu />
 
       {debug && (
         <div className="absolute right-4 top-32 w-56 bg-black/65 p-3 text-xs tabular-nums text-white/80">

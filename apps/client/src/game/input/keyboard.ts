@@ -1,21 +1,6 @@
 import { Btn, type Fighter, type InputFrame } from '@iron/engine';
 
-/** Touches par action, en `KeyboardEvent.key` minuscule (étiquette de la touche → marche en AZERTY et QWERTY). */
-export const DEFAULT_BINDINGS = {
-  screenLeft: ['q', 'arrowleft'],
-  screenRight: ['d', 'arrowright'],
-  intoScreen: ['z', 'arrowup'],
-  towardScreen: ['s', 'arrowdown'],
-  crouch: ['c'],
-  jump: [' '],
-  shift: ['shift'],
-  lp: ['a'],
-  rp: ['e'],
-  lk: ['r'],
-  rk: ['f'],
-} as const;
-
-type Action = keyof typeof DEFAULT_BINDINGS;
+import { useBindings, type Action } from './bindings';
 
 /** Axe de combat : vecteur unitaire (x,z) de P1 vers P2. Droite de l'écran = cet axe. */
 export interface Axis {
@@ -27,7 +12,6 @@ const THRESHOLD = 0.5;
 
 export class KeyboardInput {
   private down = new Set<string>();
-  private bindings: Record<Action, readonly string[]> = DEFAULT_BINDINGS;
   /** Appuis depuis le dernier `sample` (un appui bref entre deux ticks ne doit pas être perdu). */
   private pressedSinceSample = new Set<string>();
 
@@ -52,7 +36,12 @@ export class KeyboardInput {
   }
 
   private held(a: Action): boolean {
-    return this.bindings[a].some((k) => this.down.has(k) || this.pressedSinceSample.has(k));
+    return useBindings.getState().bindings[a].some((k) => this.down.has(k) || this.pressedSinceSample.has(k));
+  }
+
+  /** Oublie les appuis en attente (pendant la pause, pour qu'ils ne partent pas à la reprise). */
+  discard(): void {
+    this.pressedSinceSample.clear();
   }
 
   /** Consomme un touche « pressée » (pour les raccourcis hors combat : T, Entrée). */

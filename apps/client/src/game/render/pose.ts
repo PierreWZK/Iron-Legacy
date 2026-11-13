@@ -72,38 +72,107 @@ function guard(sw = 0): RotMap {
   };
 }
 
-/** Cycle de marche/course. `phase` en radians, `amp` amplitude des jambes. */
-function cycle(phase: number, amp: number, lean: number, arms: number): Pose {
+/** Manière de bouger propre à chaque personnage : rythme, rebond, écartement, buste, balancement. */
+interface AnimStyle {
+  /** Fréquence du rebond de garde (rad/s). */
+  hz: number;
+  /** Rebond sur les jambes (0 = garde figée, 1 = boxeur). */
+  bounce: number;
+  /** Écartement latéral des jambes (rad). */
+  wide: number;
+  /** Inclinaison du buste vers l'avant (rad, ajoutée). */
+  lean: number;
+  /** Ampleur de la foulée. */
+  walk: number;
+  /** Balancement des bras et du buste. */
+  sway: number;
+  /** Garde : > 0 relève les mains, < 0 les baisse. */
+  guardUp: number;
+}
+
+const DEFAULT_STYLE: AnimStyle = { hz: 2.2, bounce: 0.1, wide: 0.12, lean: 0, walk: 1, sway: 0.4, guardUp: 0 };
+const ANIM_STYLES: Record<string, AnimStyle> = {
+  kairo: { hz: 2.4, bounce: 0.25, wide: 0.14, lean: 0, walk: 1, sway: 0.6, guardUp: 0 },
+  vera: { hz: 7.5, bounce: 1, wide: 0.1, lean: 0.05, walk: 1.15, sway: 1.2, guardUp: 0.12 },
+  wolf: { hz: 3.5, bounce: 0.5, wide: 0.2, lean: 0.18, walk: 1.05, sway: 1.3, guardUp: -0.15 },
+  fox: { hz: 5.5, bounce: 0.9, wide: 0.1, lean: 0.1, walk: 1.2, sway: 1.4, guardUp: 0 },
+  bull: { hz: 2, bounce: 0.3, wide: 0.25, lean: 0.12, walk: 0.9, sway: 0.5, guardUp: -0.1 },
+  stag: { hz: 2.2, bounce: 0.2, wide: 0.12, lean: -0.02, walk: 1, sway: 0.5, guardUp: 0 },
+  husky: { hz: 4.5, bounce: 0.7, wide: 0.14, lean: 0.12, walk: 1.15, sway: 1.1, guardUp: 0 },
+  robot: { hz: 1.6, bounce: 0, wide: 0.14, lean: 0, walk: 0.9, sway: 0.15, guardUp: 0 },
+  shin: { hz: 5, bounce: 0.9, wide: 0.16, lean: 0.08, walk: 1.2, sway: 1, guardUp: -0.05 },
+  brutus: { hz: 1.8, bounce: 0.1, wide: 0.2, lean: 0.1, walk: 0.85, sway: 0.7, guardUp: -0.1 },
+  akira: { hz: 2.6, bounce: 0.3, wide: 0.2, lean: 0.08, walk: 0.95, sway: 0.8, guardUp: -0.05 },
+  nyx: { hz: 3, bounce: 0.4, wide: 0.12, lean: -0.03, walk: 1.05, sway: 1.5, guardUp: 0.05 },
+  scout: { hz: 6, bounce: 0.6, wide: 0.1, lean: 0.05, walk: 1.2, sway: 0.3, guardUp: 0 },
+  elite: { hz: 2.6, bounce: 0.3, wide: 0.14, lean: 0, walk: 1, sway: 0.5, guardUp: 0 },
+};
+const styleOf = (id: string): AnimStyle => ANIM_STYLES[id] ?? DEFAULT_STYLE;
+
+/** Garde du style : mains plus ou moins hautes. */
+function guardFor(sw: number, st: AnimStyle): RotMap {
+  const g = guard(sw);
+  const up = st.guardUp;
+  if (up === 0) return g;
+  return {
+    upperArmL: [g.upperArmL![0] - up, 0, g.upperArmL![2]], forearmL: g.forearmL,
+    upperArmR: [g.upperArmR![0] - up, 0, g.upperArmR![2]], forearmR: g.forearmR,
+  };
+}
+
+/** Cycle de marche/course : foulée, balancement des bras, contre-rotation du buste, rebond du bassin. */
+function cycle(phase: number, amp: number, lean: number, arms: number, st: AnimStyle): Pose {
   const s = Math.sin(phase);
   const c = Math.cos(phase);
-  const bendL = 0.45 + 0.7 * amp * Math.max(0, c);
-  const bendR = 0.45 + 0.7 * amp * Math.max(0, -c);
+  const a = amp * st.walk;
+  const bendL = 0.45 + 0.8 * a * Math.max(0, c);
+  const bendR = 0.45 + 0.8 * a * Math.max(0, -c);
+  const ln = lean + st.lean;
   return pose({
-    ...guard(s * arms),
-    spine: [lean, 0, 0],
-    thighL: [-0.3 + s * amp, 0, 0],
-    thighR: [0.15 - s * amp, 0, 0],
+    ...guardFor(s * arms * st.sway, st),
+    spine: [ln, 0, 0],
+    chest: [0, s * 0.16 * st.sway, 0],
+    head: [-ln * 0.6, -s * 0.12 * st.sway, 0],
+    thighL: [-0.3 + s * a, 0, st.wide * 0.5],
+    thighR: [0.15 - s * a, 0, -st.wide * 0.5],
     shinL: [bendL, 0, 0],
     shinR: [bendR * 0.6, 0, 0],
-    head: [-lean * 0.6, 0, 0],
-  }, { hipsY: -0.04 - 0.025 * Math.abs(c) });
+  }, { hipsY: -0.04 - 0.04 * Math.abs(c) * st.walk, bodyYaw: s * 0.06 * st.sway });
 }
 
-function idle(t: number): Pose {
-  const b = Math.sin(t * 2.4);
+/** Garde au repos : respiration, rebond sur les jambes et déplacement du poids propres au style. */
+function idle(t: number, st: AnimStyle): Pose {
+  const b = Math.sin(t * st.hz);
+  const bob = (1 + b) / 2;
+  const shift = Math.sin(t * st.hz * 0.5);
   return pose({
-    ...guard(b * 0.04),
-    ...STANCE,
-    spine: [0.06 + b * 0.015, 0, 0],
-    chest: [b * 0.02, 0, 0],
-  }, { hipsY: b * 0.012 });
+    ...guardFor(b * 0.04 * st.sway, st),
+    thighL: [-0.3 - 0.12 * st.bounce * bob, 0, st.wide],
+    shinL: [0.45 + 0.2 * st.bounce * bob, 0, 0],
+    thighR: [0.15 + 0.06 * st.bounce * bob, 0, -st.wide],
+    shinR: [0.15 + 0.12 * st.bounce * bob, 0, 0],
+    spine: [0.06 + st.lean + b * 0.015, 0, 0],
+    chest: [b * 0.02, shift * 0.05 * st.sway, 0],
+    head: [-st.lean * 0.5, -shift * 0.04 * st.sway, 0],
+  }, { hipsY: b * 0.012 - st.bounce * 0.035 * bob, bodyYaw: shift * 0.06 * st.sway });
 }
 
-/** Extension d'un coup entre 0 (repos) et 1 (impact) selon la frame. */
+/**
+ * Extension d'un coup : 0 au repos, 1 à l'impact. Le coup se « charge » d'abord (valeur légèrement négative :
+ * le membre part en arrière), accélère vers l'impact, reste tendu pendant les frames actives, puis revient
+ * en douceur. C'est cette anticipation qui donne de la force et de la lisibilité aux coups rapides.
+ */
 function extension(m: MoveDef, frame: number): number {
-  if (frame <= m.startup) return (frame / m.startup) * 0.3;
+  if (frame <= m.startup) {
+    const t = frame / m.startup;
+    const wind = 0.4;
+    if (t < wind) return -0.2 * sm(0, wind, t);
+    const u = (t - wind) / (1 - wind);
+    return -0.2 + 1.2 * (1 - (1 - u) ** 3);
+  }
   if (frame <= m.startup + m.active) return 1;
-  return Math.max(0, 1 - (frame - m.startup - m.active) / m.recovery);
+  const r = (frame - m.startup - m.active) / m.recovery;
+  return 1 - sm(0, 0.85, r);
 }
 
 /** Niveau d'accroupi pendant le coup (0 debout, 1 accroupi). */
@@ -121,9 +190,9 @@ function attackPose(id: MoveId, m: MoveDef, frame: number): Pose {
 
   switch (m.limb) {
     case 'punchL':
-      return mk({ ...g, upperArmL: [lerp(-1.1, -1.6, e), 0, 0.15], forearmL: [lerp(-1.5, 0, e), 0, 0], spine: [lerp(0.05, 0.2, e), 0, 0] });
+      return mk({ ...g, upperArmL: [lerp(-1.1, -1.6, e), 0, 0.15], forearmL: [lerp(-1.5, 0, e), 0, 0], spine: [lerp(0.05, 0.2, e), 0, 0], upperArmR: [-1.1, 0, -0.1], thighL: [lerp(-0.3, -0.45, e), 0, 0.12] }, { bodyYaw: lerp(0, 0.32, e), hipsY: -0.03 * e });
     case 'punchR':
-      return mk({ ...g, upperArmR: [lerp(-1.0, -1.6, e), 0, -0.15], forearmR: [lerp(-1.6, 0, e), 0, 0], spine: [lerp(0.05, 0.25, e), 0, 0] });
+      return mk({ ...g, upperArmR: [lerp(-1.0, -1.6, e), 0, -0.15], forearmR: [lerp(-1.6, 0, e), 0, 0], spine: [lerp(0.05, 0.25, e), 0, 0], thighR: [lerp(0.15, 0.3, e), 0, -0.12] }, { bodyYaw: lerp(0, -0.4, e), hipsY: -0.04 * e });
     case 'hook':
       return mk({ ...g, upperArmR: [-1.45, 0, lerp(-0.2, -1.3, e)], forearmR: [-1.7, 0, 0], spine: [lerp(0.05, 0.25, e), 0, 0] }, { bodyYaw: lerp(0, -0.6, e) });
     case 'risingHook':
@@ -143,7 +212,7 @@ function attackPose(id: MoveId, m: MoveDef, frame: number): Pose {
       if (m.height === 'low') {
         return mk({ ...g, thighL: [lerp(-1.3, -1.45, e), 0, 0], shinL: [lerp(1.6, 0.1, e), 0, 0], spine: [lerp(0.3, 0.15, e), 0, 0] });
       }
-      return mk({ ...g, spine: [lerp(0.05, -0.12, e), 0, 0], thighL: [lerp(-0.3, -1.5, e), 0, 0], shinL: [lerp(1.4, 0.05, e), 0, 0] });
+      return mk({ ...g, spine: [lerp(0.05, -0.12, e), 0, 0], thighL: [lerp(-0.3, -1.5, e), 0, 0], shinL: [lerp(1.4, 0.05, e), 0, 0], thighR: [lerp(0.15, 0.3, e), 0, 0] }, { bodyYaw: lerp(0, 0.3, e), hipsY: 0.02 * e });
     case 'kickR':
       if (m.height === 'low') {
         return mk({ ...g, thighR: [lerp(-1.1, -1.45, e), 0, lerp(0, 0.9, e)], shinR: [lerp(1.7, 0.1, e), 0, 0], spine: [0.25, 0, 0] }, { bodyYaw: lerp(0, -1.0, e) });
@@ -315,11 +384,16 @@ function crouchPose(block: boolean): Pose {
   return pose({ ...arms, ...CROUCH_LEGS, spine: [0.3, 0, 0] }, { hipsY: -0.38 });
 }
 
-function jumpPose(): Pose {
+function jumpPose(vy: number): Pose {
+  const up = clamp01(vy / 6);
+  const down = clamp01(-vy / 6);
   return pose({
-    upperArmL: [-1.3, 0, 0.3], forearmL: [-1.3, 0, 0], upperArmR: [-1.3, 0, -0.3], forearmR: [-1.3, 0, 0],
-    ...JUMP_LEGS, spine: [0.1, 0, 0],
-  });
+    upperArmL: [lerp(-1.3, -2.1, up) + 0.9 * down, 0, 0.3 + 0.35 * down], forearmL: [-1.3 + 0.6 * down, 0, 0],
+    upperArmR: [lerp(-1.3, -2.1, up) + 0.9 * down, 0, -0.3 - 0.35 * down], forearmR: [-1.3 + 0.6 * down, 0, 0],
+    thighL: [-1.0 - 0.35 * up + 0.55 * down, 0, 0.05], shinL: [1.3 + 0.5 * up - 0.7 * down, 0, 0],
+    thighR: [-0.5 - 0.6 * up + 0.3 * down, 0, -0.05], shinR: [1.0 + 0.6 * up - 0.5 * down, 0, 0],
+    spine: [0.1 + 0.15 * up - 0.1 * down, 0, 0],
+  }, { hipsY: 0.02 * up });
 }
 
 function dodgePose(sub: Fighter['sub'], frame: number): Pose {
@@ -332,6 +406,7 @@ function dodgePose(sub: Fighter['sub'], frame: number): Pose {
 
 /** Pose à partir de l'état complet du combattant (action, coup en cours, frame) et du monde (projections). */
 export function poseFor(f: Fighter, t: number, w: World): Pose {
+  const st = styleOf(f.characterId);
   if (f.action === 'thrown' && f.thrownBy !== null) {
     const a = w.fighters[f.thrownBy];
     const m = a && a.move ? getMove(a.characterId, a.move) : null;
@@ -339,18 +414,18 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
   }
   switch (f.action) {
     case 'attack':
-      if (!f.move) return idle(t);
+      if (!f.move) return idle(t, st);
       return attackPose(f.move, getMove(f.characterId, f.move), f.moveFrame);
     case 'walkFwd':
-      return cycle(t * 8, 0.45, 0.08, 0.15);
+      return cycle(t * 8, 0.45, 0.08, 0.15, st);
     case 'walkBack':
-      return cycle(-t * 7, 0.35, -0.02, 0.1);
+      return cycle(-t * 7, 0.35, -0.02, 0.1, st);
     case 'sideL':
-      return { ...cycle(t * 8, 0.3, 0.05, 0.1), bodyYaw: 0.5 };
+      return { ...cycle(t * 8, 0.3, 0.05, 0.1, st), bodyYaw: 0.5 };
     case 'sideR':
-      return { ...cycle(t * 8, 0.3, 0.05, 0.1), bodyYaw: -0.5 };
+      return { ...cycle(t * 8, 0.3, 0.05, 0.1, st), bodyYaw: -0.5 };
     case 'runFwd':
-      return cycle(t * 12, 0.9, 0.4, 0.5);
+      return cycle(t * 12, 0.9, 0.4, 0.5, st);
     case 'crouch':
       return crouchPose(false);
     case 'crouchBlock':
@@ -358,19 +433,21 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
     case 'block':
       return pose({ ...guard(0), ...STANCE, spine: [-0.05, 0, 0] });
     case 'jump':
-      return jumpPose();
+      return jumpPose(f.vel.y);
     case 'dodge':
       return dodgePose(f.sub, f.moveFrame);
     case 'parry':
       return pose({
         upperArmL: [-1.2, 0, 0.3], forearmL: [-1.0, 0, 0], upperArmR: [-1.2, 0, -0.3], forearmR: [-1.0, 0, 0], ...STANCE, spine: [0.1, 0, 0],
       });
-    case 'hitstun':
+    case 'hitstun': {
+      const k = 0.55 + 0.45 * clamp01((f.stun - 4) / 12);
       return pose({
-        spine: [-0.35, 0, 0], head: [-0.3, 0, 0],
-        upperArmL: [-0.4, 0, 0.6], forearmL: [-0.6, 0, 0], upperArmR: [-0.4, 0, -0.6], forearmR: [-0.6, 0, 0],
-        thighL: [-0.2, 0, 0], shinL: [0.6, 0, 0], thighR: [0.2, 0, 0], shinR: [0.4, 0, 0],
-      });
+        spine: [-0.4 * k, 0, 0], head: [-0.45 * k, 0, 0], chest: [0, 0.15 * k, 0],
+        upperArmL: [-0.4, 0, 0.6 * k], forearmL: [-0.6, 0, 0], upperArmR: [-0.4, 0, -0.6 * k], forearmR: [-0.6, 0, 0],
+        thighL: [-0.2, 0, 0.1], shinL: [0.6, 0, 0], thighR: [0.2, 0, -0.1], shinR: [0.4, 0, 0],
+      }, { hipsY: -0.03 * k, bodyYaw: 0.18 * k });
+    }
     case 'knockdown':
     case 'thrown':
       return pose({ upperArmL: [0, 0, 0.9], upperArmR: [0, 0, -0.9], thighL: [0, 0, 0], thighR: [0, 0, 0] }, { lying: true });
@@ -384,6 +461,6 @@ export function poseFor(f: Fighter, t: number, w: World): Pose {
         ...STANCE, spine: [-0.05 + 0.03 * Math.sin(t * 4), 0, 0],
       });
     default:
-      return idle(t);
+      return idle(t, st);
   }
 }
