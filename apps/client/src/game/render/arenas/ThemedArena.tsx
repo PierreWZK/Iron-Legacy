@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Particles, SkyDome, Stars } from './atmosphere';
+import { modelProp } from './envModels';
 import { LOOKS } from './looks';
 import { makeProp, mulberry32 } from './scenery';
 import type { ArenaId, ArenaSpec } from './specs';
@@ -63,11 +64,12 @@ export function ThemedArena({ id, spec }: { id: ArenaId; spec: ArenaSpec }) {
     const group = new THREE.Group();
     for (const layer of spec.layers) {
       for (let i = 0; i < layer.count; i++) {
-        const o = makeProp(layer.kind, rnd, layer.colors);
-        const angle = rnd() * Math.PI * 2;
+        const o = modelProp(layer.kind, rnd, layer.colors) ?? makeProp(layer.kind, rnd, layer.colors);
+        // En couronne régulière (murs, portes) : tourné vers le centre. Sinon semé au hasard.
+        const angle = layer.ring ? ((i + 0.5) / layer.count) * Math.PI * 2 : rnd() * Math.PI * 2;
         const radius = layer.rMin + rnd() * (layer.rMax - layer.rMin);
         o.position.set(Math.cos(angle) * radius, layer.y ?? 0, Math.sin(angle) * radius);
-        o.rotation.y = rnd() * Math.PI * 2;
+        o.rotation.y = layer.ring ? -angle + (layer.turn ?? 0) : rnd() * Math.PI * 2;
         o.scale.setScalar(layer.scale[0] + rnd() * (layer.scale[1] - layer.scale[0]));
         group.add(o);
       }

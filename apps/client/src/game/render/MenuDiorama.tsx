@@ -11,10 +11,10 @@ function Duel({ a, b }: { a: string; b: string }) {
   const pa = useMemo(() => new RigPlayer(a, 0.02), [a]);
   const pb = useMemo(() => new RigPlayer(b, 0.02), [b]);
   const st = useMemo(() => ({ t: 0, next: 1.2, i: 0 }), []);
-  pa.rig.root.position.x = -1.15;
-  pa.rig.root.rotation.y = Math.PI / 2;
-  pb.rig.root.position.x = 1.15;
-  pb.rig.root.rotation.y = -Math.PI / 2;
+  pa.root.position.x = -1.15;
+  pa.root.rotation.y = Math.PI / 2;
+  pb.root.position.x = 1.15;
+  pb.root.rotation.y = -Math.PI / 2;
 
   useFrame((state, delta) => {
     const d = Math.min(delta, 0.05);
@@ -35,8 +35,8 @@ function Duel({ a, b }: { a: string; b: string }) {
 
   return (
     <>
-      <primitive object={pa.rig.root} />
-      <primitive object={pb.rig.root} />
+      <primitive object={pa.root} />
+      <primitive object={pb.root} />
     </>
   );
 }

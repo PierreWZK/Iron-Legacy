@@ -1,4 +1,6 @@
 import { createDuelWorld, getMove, type Fighter, type MoveId, type World } from '@iron/engine';
+import * as THREE from 'three';
+import { loadModelRig, type ModelRig } from './modelRig';
 import { poseFor } from './pose';
 import { BONE_NAMES, buildRig, type Rig } from './rig';
 import { visualFor, type VisualSpec } from './visuals';
@@ -9,7 +11,12 @@ import { visualFor, type VisualSpec } from './visuals';
  */
 export class RigPlayer {
   readonly spec: VisualSpec;
-  readonly rig: Rig;
+  /** Corps affiché : dessiné en code au départ, remplacé par le modèle 3D dès qu'il est chargé. */
+  rig: Rig | ModelRig;
+  /** Nœud stable à placer dans la scène (le corps change dedans). */
+  readonly root = new THREE.Group();
+  /** Résolue quand le modèle 3D est en place (ou a échoué : le corps dessiné en code reste). */
+  readonly ready: Promise<void>;
   private readonly world: World;
   private readonly f: Fighter;
   private t = Math.random() * 10;
@@ -24,8 +31,22 @@ export class RigPlayer {
     this.rig = buildRig(this.spec, { outline });
     this.world = createDuelWorld({ p1: id, p2: id === 'kairo' ? 'vera' : 'kairo' });
     this.f = this.world.fighters[0]!;
-    this.rig.root.position.y = this.rig.pivotH;
+    this.root.add(this.rig.root);
     this.update(1, true);
+    this.ready = loadModelRig(this.spec).then(
+      (m) => {
+        this.root.remove(this.rig.root);
+        this.rig = m;
+        this.root.add(m.root);
+        this.update(0, true);
+      },
+      (e) => console.warn('Modèle 3D indisponible', e),
+    );
+  }
+
+  /** Reporte sur le modèle 3D les rotations écrites à la main dans `rig.bones` (portraits). */
+  sync(): void {
+    if ('sync' in this.rig) this.rig.sync(0, this.f);
   }
 
   /** Lance un coup du personnage (rien si un coup est déjà en cours). */
@@ -79,6 +100,7 @@ export class RigPlayer {
       bone.rotation.y += (y - bone.rotation.y) * k;
       bone.rotation.z += (z - bone.rotation.z) * k;
     }
+    if ('sync' in rig) rig.sync(delta, this.f);
     for (const sw of rig.sway) sw.obj.rotation.x = 0.35 + Math.sin(this.t * sw.freq + sw.phase) * sw.amp;
     rig.bones.tail.rotation.set(0.1 + Math.sin(this.t * 3) * 0.08, Math.sin(this.t * 2.2) * 0.3, 0);
   }

@@ -45,7 +45,7 @@ function Showcase({ id, request, yaw }: { id: string; request: MoveRequest | nul
 
   return (
     <group ref={holder}>
-      <primitive object={player.rig.root} />
+      <primitive object={player.root} />
       <mesh position={[0, 0.01, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1.7, 48]} />
         <meshStandardMaterial color="#10131a" roughness={0.6} metalness={0.4} />

@@ -18,7 +18,9 @@ export function mulberry32(seed: number): Rnd {
 export type PropKind =
   | 'tree' | 'pine' | 'deadTree' | 'rock' | 'bush' | 'cactus' | 'pillar' | 'column' | 'crate' | 'barrel'
   | 'lamp' | 'building' | 'pipe' | 'tower' | 'torii' | 'iceSpike' | 'snowMound' | 'lantern' | 'machine'
-  | 'chimney' | 'dune' | 'mesa';
+  | 'chimney' | 'dune' | 'mesa'
+  // Modèles 3D uniquement (voir envModels.ts).
+  | 'grass' | 'wall' | 'gate' | 'floorLight' | 'block';
 
 export interface PropColors {
   /** Couleur principale (feuillage, façade, pierre…). */
@@ -27,6 +29,8 @@ export interface PropColors {
   secondary: number;
   /** Couleur lumineuse (fenêtres, voyants, lanternes). */
   accent: number;
+  /** Variante de textures des modèles 3D (panneaux rouges de la forteresse). */
+  skin?: 'red';
 }
 
 const geo = {
