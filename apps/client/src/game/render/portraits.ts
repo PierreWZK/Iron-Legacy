@@ -22,9 +22,9 @@ function getRenderer(size: number): THREE.WebGLRenderer {
   return renderer;
 }
 
-function draw(id: string, size: number): string {
+function draw(player: RigPlayer, size: number): string {
+  const id = player.id;
   const r = getRenderer(size);
-  const player = new RigPlayer(id, 0.012);
   // Pose de portrait : bras le long du corps, torse bombé, regard légèrement relevé.
   const b = player.rig.bones;
   b.upperArmL.rotation.set(0.1, 0, 0.32);
@@ -37,8 +37,9 @@ function draw(id: string, size: number): string {
   b.shinR.rotation.set(0, 0, 0);
   b.spine.rotation.set(-0.05, 0, 0);
   b.head.rotation.set(-0.06, 0.1, 0);
+  player.sync();
   const scene = new THREE.Scene();
-  scene.add(player.rig.root);
+  scene.add(player.root);
   scene.add(new THREE.AmbientLight(0xffffff, 1.0));
   const key = new THREE.DirectionalLight(0xffffff, 2.6);
   key.position.set(2, 3, 4);
@@ -47,12 +48,16 @@ function draw(id: string, size: number): string {
   rim.position.set(-3, 2, -2);
   scene.add(rim);
 
-  player.rig.root.rotation.y = -0.45;
-  player.rig.root.updateMatrixWorld(true);
+  player.root.rotation.y = -0.45;
+  player.root.updateMatrixWorld(true);
+  const headNode = 'headNode' in player.rig ? player.rig.headNode : player.rig.bones.head;
   const head = new THREE.Vector3();
-  player.rig.bones.head.getWorldPosition(head);
-  const box = new THREE.Box3().setFromObject(player.rig.bones.head);
-  const top = box.max.y + 0.06;
+  headNode.getWorldPosition(head);
+  const box = new THREE.Box3().setFromObject(headNode);
+  // Modèle 3D : l'os est à la base du crâne ; sans coiffure, la boîte est vide.
+  const top = 'headNode' in player.rig
+    ? Math.max(box.isEmpty() ? 0 : box.max.y, head.y + 0.22 * visualFor(id).height) + 0.05
+    : box.max.y + 0.06;
   const bottom = head.y - 0.5 * visualFor(id).height;
   const height = Math.max(0.8, top - bottom);
   const cy = (top + bottom) / 2;
@@ -78,14 +83,15 @@ export function getPortrait(id: string, size = SMALL): Promise<string> {
       queue = queue.then(
         () => new Promise<void>((done) => {
           // Un rendu par image d'animation pour ne pas bloquer l'interface.
-          window.requestAnimationFrame(() => {
+          const player = new RigPlayer(id, 0.012);
+          void player.ready.then(() => window.requestAnimationFrame(() => {
             try {
-              resolve(draw(id, size));
+              resolve(draw(player, size));
             } catch {
               resolve('');
             }
             done();
-          });
+          }));
         }),
       );
     });

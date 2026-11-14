@@ -10,6 +10,10 @@ export interface Layer {
   colors: PropColors;
   /** Hauteur de pose (m). */
   y?: number;
+  /** Posés en couronne régulière, tournés vers le centre (murs, portes). */
+  ring?: boolean;
+  /** Rotation ajoutée aux éléments en couronne (rad). */
+  turn?: number;
 }
 
 export interface ArenaSpec {
@@ -49,6 +53,7 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
       { kind: 'pine', count: 30, rMin: FAR, rMax: 42, scale: [1.2, 2.0], colors: col(0x1f4a30, 0x3a2a1a) },
       { kind: 'deadTree', count: 6, rMin: FAR, rMax: 36, scale: [1.2, 1.6], colors: col(0, 0x3a2e24) },
       { kind: 'bush', count: 24, rMin: 9.5, rMax: 17, scale: [0.8, 1.4], colors: col(0x2a5030, 0) },
+      { kind: 'grass', count: 90, rMin: 9.6, rMax: 22, scale: [0.7, 1.3], colors: col(0x3f7a34, 0) },
       { kind: 'rock', count: 14, rMin: 9.5, rMax: 16, scale: [0.6, 1.1], colors: col(0x55595c, 0) },
     ],
   },
@@ -60,6 +65,7 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
       { kind: 'tree', count: 22, rMin: FAR, rMax: 40, scale: [1.2, 1.9], colors: col(0xb5481a, 0x4a3320) },
       { kind: 'tree', count: 12, rMin: FAR, rMax: 40, scale: [1.2, 1.9], colors: col(0xe8b03a, 0x4a3320) },
       { kind: 'bush', count: 26, rMin: 9.5, rMax: 17, scale: [0.8, 1.4], colors: col(0xc8641e, 0) },
+      { kind: 'grass', count: 80, rMin: 9.6, rMax: 22, scale: [0.7, 1.3], colors: col(0xb88a3a, 0) },
       { kind: 'rock', count: 10, rMin: 9.5, rMax: 16, scale: [0.6, 1.1], colors: col(0x6a5a4a, 0) },
     ],
   },
@@ -103,6 +109,9 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
     ],
     layers: [
       { kind: 'pillar', count: 14, rMin: FAR, rMax: 25, scale: [1.0, 1.3], colors: col(0x2a3846, 0x34e0ff) },
+      { kind: 'wall', count: 15, rMin: 26, rMax: 26, scale: [1, 1], ring: true, colors: col(0, 0, 0x34e0ff) },
+      { kind: 'gate', count: 4, rMin: 24.5, rMax: 24.5, scale: [1, 1], ring: true, turn: Math.PI / 2, colors: col(0, 0, 0x34e0ff) },
+      { kind: 'floorLight', count: 10, rMin: 9.7, rMax: 9.7, scale: [1, 1], ring: true, turn: Math.PI / 2, colors: col(0, 0, 0x34e0ff) },
       { kind: 'machine', count: 12, rMin: 12, rMax: 17, scale: [0.9, 1.3], colors: col(0x3a4858, 0x6a7a8a, 0x34e0ff) },
       { kind: 'crate', count: 8, rMin: 11, rMax: 16, scale: [0.9, 1.3], colors: col(0x4a5868, 0x34e0ff) },
       { kind: 'tower', count: 6, rMin: FAR, rMax: 30, scale: [1.0, 1.4], colors: col(0x2a3846, 0x4a5868, 0x34e0ff) },
@@ -117,9 +126,12 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
       { pos: [10, 3, -10], color: '#ff3a2a', intensity: 16 },
     ],
     layers: [
-      { kind: 'pillar', count: 16, rMin: FAR, rMax: 26, scale: [1.1, 1.5], colors: col(0x3a2424, 0xff3a2a) },
+      { kind: 'pillar', count: 16, rMin: FAR, rMax: 26, scale: [1.1, 1.5], colors: { ...col(0x3a2424, 0xff3a2a, 0xff3a2a), skin: 'red' } },
+      { kind: 'wall', count: 15, rMin: 27, rMax: 27, scale: [1, 1], ring: true, colors: { ...col(0, 0, 0xff3a2a), skin: 'red' } },
+      { kind: 'gate', count: 4, rMin: 25, rMax: 25, scale: [1, 1], ring: true, turn: Math.PI / 2, colors: { ...col(0, 0, 0xff3a2a), skin: 'red' } },
+      { kind: 'floorLight', count: 10, rMin: 9.7, rMax: 9.7, scale: [1, 1], ring: true, turn: Math.PI / 2, colors: { ...col(0, 0, 0xff3a2a), skin: 'red' } },
       { kind: 'tower', count: 10, rMin: FAR, rMax: 34, scale: [1.2, 1.8], colors: col(0x3a2424, 0x5a3a3a, 0xff3a2a) },
-      { kind: 'machine', count: 10, rMin: 12, rMax: 17, scale: [1.0, 1.4], colors: col(0x4a2e2e, 0x6a4a4a, 0xff3a2a) },
+      { kind: 'machine', count: 10, rMin: 12, rMax: 17, scale: [1.0, 1.4], colors: { ...col(0x4a2e2e, 0x6a4a4a, 0xff3a2a), skin: 'red' } },
     ],
   },
   street: {
@@ -130,8 +142,9 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
       { pos: [9, 3.6, 9], color: '#6ab8ff', intensity: 14 },
     ],
     layers: [
-      { kind: 'building', count: 36, rMin: FAR + 2, rMax: 44, scale: [1.0, 1.6], colors: col(0x3a4468, 0, 0xffe0a0) },
-      { kind: 'building', count: 14, rMin: FAR + 2, rMax: 44, scale: [1.0, 1.6], colors: col(0x4a3c68, 0, 0x9ae0ff) },
+      // Immeubles en modèles 3D, façade vers l'aire de combat ; silhouettes dessinées en code derrière.
+      { kind: 'block', count: 12, rMin: 33, rMax: 36, scale: [0.95, 1.15], ring: true, turn: -Math.PI / 2, colors: col(0, 0, 0xffd9a0) },
+      { kind: 'building', count: 22, rMin: 50, rMax: 58, scale: [1.3, 1.9], colors: col(0x3a4468, 0, 0xffe0a0) },
       { kind: 'lamp', count: 12, rMin: 10, rMax: 17, scale: [1.0, 1.1], colors: col(0, 0x4a4e5a, 0xffc880) },
       { kind: 'barrel', count: 8, rMin: 10, rMax: 16, scale: [1.0, 1.2], colors: col(0x6a2a2a, 0x8a8e9a) },
       { kind: 'crate', count: 8, rMin: 10, rMax: 16, scale: [0.9, 1.3], colors: col(0x5a4a38, 0x3a2e24) },
@@ -142,7 +155,9 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
     ambient: ['#6a7a9a', 0.5], sun: ['#9ab0d8', 0.9], rain: true,
     points: [{ pos: [0, 4, -8], color: '#ff5a6a', intensity: 12 }],
     layers: [
-      { kind: 'building', count: 44, rMin: FAR + 3, rMax: 46, scale: [1.0, 1.8], colors: col(0x3c4868, 0, 0xffe0a0) },
+      // On combat sur un toit : les immeubles voisins dépassent de quelques étages seulement.
+      { kind: 'block', count: 11, rMin: 31, rMax: 35, scale: [0.95, 1.15], y: -9, ring: true, turn: -Math.PI / 2, colors: col(0, 0, 0xffd9a0) },
+      { kind: 'building', count: 20, rMin: 40, rMax: 46, scale: [1.0, 1.8], colors: col(0x3c4868, 0, 0xffe0a0) },
       { kind: 'tower', count: 8, rMin: FAR, rMax: 36, scale: [1.0, 1.5], colors: col(0x4a5068, 0x6a7088, 0xff6a7a) },
       { kind: 'machine', count: 10, rMin: 11, rMax: 17, scale: [0.9, 1.2], colors: col(0x3a3e48, 0x5a5e68, 0xff4a5a) },
       { kind: 'barrel', count: 6, rMin: 10, rMax: 16, scale: [1.0, 1.2], colors: col(0x4a4e5a, 0x6a6e7a) },
@@ -159,6 +174,8 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
     layers: [
       { kind: 'machine', count: 18, rMin: 11, rMax: 18, scale: [1.0, 1.5], colors: col(0x4a4040, 0x7a6a5a, 0xff8a2a) },
       { kind: 'pipe', count: 14, rMin: FAR, rMax: 34, scale: [1.0, 1.4], colors: col(0x6a5a4a, 0x3a3030) },
+      { kind: 'wall', count: 15, rMin: 26, rMax: 26, scale: [1, 1], ring: true, colors: { ...col(0, 0, 0xff8a2a), skin: 'red' } },
+      { kind: 'floorLight', count: 8, rMin: 9.7, rMax: 9.7, scale: [1, 1], ring: true, turn: Math.PI / 2, colors: col(0, 0, 0xff8a2a) },
       { kind: 'chimney', count: 7, rMin: 28, rMax: 44, scale: [1.0, 1.4], colors: col(0x3a2e2a, 0x5a4a40, 0xff8a2a) },
       { kind: 'barrel', count: 10, rMin: 10, rMax: 16, scale: [1.0, 1.3], colors: col(0x8a3a1a, 0x5a5a60) },
       { kind: 'crate', count: 10, rMin: 10, rMax: 16, scale: [0.9, 1.4], colors: col(0x5a4a38, 0x3a2e24) },
@@ -176,6 +193,7 @@ export const ARENAS: Record<Exclude<ArenaId, 'dojo'>, ArenaSpec> = {
       { kind: 'torii', count: 3, rMin: FAR, rMax: 28, scale: [1.6, 2.2], colors: col(0x9a2a24, 0x6a1a18) },
       { kind: 'lantern', count: 10, rMin: 9.5, rMax: 13, scale: [1.0, 1.2], colors: col(0x7a7262, 0x4a4238, 0xffa850) },
       { kind: 'tree', count: 24, rMin: FAR, rMax: 40, scale: [1.2, 1.9], colors: col(0x2f5a3a, 0x3a2a1a) },
+      { kind: 'grass', count: 60, rMin: 13, rMax: 22, scale: [0.7, 1.2], colors: col(0x4a7a3a, 0) },
       { kind: 'rock', count: 12, rMin: 9.5, rMax: 18, scale: [0.6, 1.2], colors: col(0x6a6256, 0) },
     ],
   },

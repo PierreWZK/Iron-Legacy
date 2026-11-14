@@ -1,15 +1,24 @@
 import { useFrame } from '@react-three/fiber';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { runtime } from '../runtime';
+import { loadModelRig, type ModelRig } from './modelRig';
 import { poseFor } from './pose';
-import { BONE_NAMES, buildRig } from './rig';
+import { BONE_NAMES, buildRig, type Rig } from './rig';
 import { visualFor } from './visuals';
 
 /** Vue d'un combattant : lit l'état de la sim (interpolé), n'écrit jamais dedans. */
 export function FighterView({ index, characterId }: { index: number; characterId: string }) {
   const spec = useMemo(() => visualFor(characterId), [characterId]);
-  const rig = useMemo(() => buildRig(spec), [spec]);
+  // Modèle 3D dès qu'il est chargé ; en attendant (ou en cas d'échec), le corps dessiné en code.
+  const [rig, setRig] = useState<Rig | ModelRig>(() => buildRig(spec));
+  useEffect(() => {
+    let alive = true;
+    loadModelRig(spec).then((m) => alive && setRig(m), (e) => console.warn('Modèle 3D indisponible', e));
+    return () => {
+      alive = false;
+    };
+  }, [spec]);
   const s = useMemo(() => ({ yaw: 0, t: 0, bodyYaw: 0, hipsY: 0, lying: 0, px: 0, pz: 0, init: false }), []);
 
   useFrame((_, delta) => {
@@ -67,6 +76,7 @@ export function FighterView({ index, characterId }: { index: number; characterId
       bone.rotation.y += (y - bone.rotation.y) * kb;
       bone.rotation.z += (z - bone.rotation.z) * kb;
     }
+    if ('sync' in rig) rig.sync(delta, cur);
 
     // Éléments qui ondulent : écharpes, bandeaux, queue de cheval, queues d'animaux.
     const energy = cur.action === 'runFwd' ? 1.7 : cur.action.startsWith('walk') || cur.action.startsWith('side') ? 1.25 : 1;
